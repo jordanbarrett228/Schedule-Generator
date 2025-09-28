@@ -1,0 +1,11 @@
+/.venv
+backend/.venv
+node_modules
+/dist
+/build
+.env
+*.pyc
+__pycache__/
+.vscode/
+.DS_Store
+/.idea
