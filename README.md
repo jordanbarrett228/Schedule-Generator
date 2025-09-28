@@ -37,3 +37,30 @@ npm run dev
 Notes
 - Backend dependencies are listed in `backend/requirements.txt`.
 - Frontend scaffold uses Vite + React + TypeScript.
+
+Try it (quick smoke tests)
+
+1) Start backend
+
+```powershell
+cd backend
+. .venv\Scripts\Activate.ps1
+uvicorn app.main:app --reload --port 8000
+```
+
+Then from another PowerShell window run:
+
+```powershell
+Invoke-RestMethod -Uri http://127.0.0.1:8000/health
+```
+
+You should get {"status":"ok"}.
+
+2) Start frontend
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
