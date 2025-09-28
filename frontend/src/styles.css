@@ -1,0 +1,16 @@
+:root { --gap: 12px; --pad: 16px; }
+body { font-family: system-ui, ui-sans-serif, Segoe UI, Roboto, Arial, sans-serif; }
+.button { padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; background: #fff; cursor: pointer; }
+.button.primary { background: #111; color: #fff; border-color: #111; }
+.input, select { padding: 8px; border: 1px solid #ddd; border-radius: 8px; }
+.row { display: flex; gap: var(--gap); align-items: center; }
+.grid { display: grid; gap: var(--gap); }
+.label { font-size: 12px; color: #444; }
+
+/* Modal */
+.modal-backdrop { position: fixed; inset:0; background: rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; }
+.modal { width: min(900px, 96vw); max-height: 90vh; overflow:auto; background:#fff; border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,0.2); padding: 20px; }
+.modal header { display:flex; align-items:center; justify-content:space-between; margin-bottom: 12px; }
+.section { border: 1px solid #eee; border-radius: 12px; padding: var(--pad); }
+.table { width: 100%; border-collapse: collapse; }
+.table th, .table td { padding: 8px; border-bottom: 1px solid #eee; }

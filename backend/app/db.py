@@ -1,8 +1,8 @@
 import os
 from pathlib import Path
-from sqlmodel import SQLModel, create_engine, Session
+from sqlmodel import SQLModel, create_engine, Session, select
 from pydantic_settings import BaseSettings
-
+from datetime import time
 
 class Settings(BaseSettings):
     db_path: str = "./data/schedule.db"
@@ -10,15 +10,8 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_prefix = ""
 
-
 settings = Settings()
-
-
-# Ensure data dir exists
 Path(settings.db_path).parent.mkdir(parents=True, exist_ok=True)
-
-
-# SQLite URL must be a filesystem path
 DATABASE_URL = f"sqlite:///{settings.db_path}"
 engine = create_engine(
     DATABASE_URL,
@@ -26,16 +19,26 @@ engine = create_engine(
     connect_args={"check_same_thread": False},
 )
 
-
 def init_db() -> None:
-    # Import models here so SQLModel sees them before create_all
-    from .models.employee import Employee # noqa: F401
+    # Import models so SQLModel sees them
+    from .models.employee import Employee  # noqa: F401
+    from .models.unavailable import UnavailableBlock  # noqa: F401
+    from .models.timeoff import TimeOff  # noqa: F401
+    from .models.lockedshift import LockedShift  # noqa: F401
+    from .models.settings import GlobalSettings, CoveragePeak  # noqa: F401
+
     SQLModel.metadata.create_all(engine)
 
+    # Ensure one GlobalSettings row
+    with Session(engine) as session:
+        existing = session.exec(select(GlobalSettings)).first()
+        if not existing:
+            gs = GlobalSettings(min_staff_default=2, business_open=time(8,0), business_close=time(21,0))
+            session.add(gs)
+            session.commit()
 
-# Dependency for FastAPI routes
 
-
+# FastAPI dependency
 def get_session():
     with Session(engine) as session:
         yield session
