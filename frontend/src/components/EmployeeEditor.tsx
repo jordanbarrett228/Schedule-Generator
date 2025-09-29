@@ -13,11 +13,12 @@ export type Employee = {
   prefer_mid: boolean
   prefer_closing: boolean
   max_consecutive_days: number | null
+  allow_split_shifts: boolean
 }
 
 export type UnavailableBlock = { id: number; employee_id: number; weekday: number; start_time: string; end_time: string }
 export type TimeOff = { id: number; employee_id: number; start_date: string; end_date: string; reason?: string }
-export type LockedShift = { id: number; employee_id: number; date: string; start_time: string; end_time: string; note?: string }
+export type LockedShift = { id: number; employee_id: number; weekday: number; start_time: string; end_time: string; note?: string }
 
 const weekdays = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
 
@@ -79,10 +80,10 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
     setTimeOff(p=>p.filter(x=>x.id!==id))
   }
 
-  const addLocked = async (date: string, start_time: string, end_time: string, note: string) => {
+  const addLocked = async (weekday: number, start_time: string, end_time: string, note: string) => {
     const res = await fetch(`/api/employees/${empId}/locked_shifts`, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ employee_id: empId, date, start_time, end_time, note })
+      body: JSON.stringify({ employee_id: empId, weekday, start_time, end_time, note })
     })
     const rec = await res.json()
     setLocked(p=>[...p, rec])
@@ -136,11 +137,16 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
                 <input className="input" type="number" step="0.5" value={emp.max_shift_hours}
                   onChange={e=>setEmp({...emp, max_shift_hours: +e.target.value})} />
               </div>
-              <div>
+              <label className="row" style={{gap:8}}>
+                <input type="checkbox" checked={emp.allow_split_shifts}
+                  onChange={e=>setEmp({...emp, allow_split_shifts: e.target.checked})} />
+                    Allow split shifts (max 2/day)
+              </label>
+              {/* <div>
                 <div className="label">Max consecutive days (soft)</div>
                 <input className="input" type="number" min={0} value={emp.max_consecutive_days ?? ''}
                   onChange={e=>setEmp({...emp, max_consecutive_days: e.target.value? +e.target.value : null})} />
-              </div>
+              </div> */}
             </div>
             
             <div className="grid" style={{gap:8}}>
@@ -240,26 +246,28 @@ function TimeOffEditor({ rows, onAdd, onDelete }:{ rows:TimeOff[], onAdd:(start:
   )
 }
 
-function LockedEditor({ rows, onAdd, onDelete }:{ rows:LockedShift[], onAdd:(date:string,start:string,end:string,note:string)=>void, onDelete:(id:number)=>void }){
-  const [date, setDate] = useState('')
+function LockedEditor({ rows, onAdd, onDelete }:{ rows:LockedShift[], onAdd:(weekday:number,start:string,end:string,note:string)=>void, onDelete:(id:number)=>void }){
+  const [weekday, setWeekday] = useState(0)
   const [start, setStart] = useState('09:00')
   const [end, setEnd] = useState('17:00')
   const [note, setNote] = useState('')
   return (
     <div className="grid" style={{gap:8}}>
       <div className="row" style={{gap:8, flexWrap:'wrap'}}>
-        <input className="input" type="date" value={date} onChange={e=>setDate(e.target.value)} />
-        <input className="input" type="time" value={start} onChange={e=>setStart(e.target.value)} />
-        <input className="input" type="time" value={end} onChange={e=>setEnd(e.target.value)} />
+        <select value={weekday} onChange={e=>setWeekday(+e.target.value)}>
++          {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((w,i)=>(<option key={i} value={i}>{w}</option>))}
++        </select>
++        <input className="input" type="time" value={start} onChange={e=>setStart(e.target.value)} />
++        <input className="input" type="time" value={end} onChange={e=>setEnd(e.target.value)} />
         <input className="input" placeholder="Note (optional)" value={note} onChange={e=>setNote(e.target.value)} />
-        <button className="button" onClick={()=>{ if(date) onAdd(date,start,end,note); }}>Add</button>
+        <button className="button" onClick={()=> onAdd(weekday,start,end,note)}>Add</button>
       </div>
       <table className="table">
-        <thead><tr><th>Date</th><th>Start</th><th>End</th><th>Note</th><th></th></tr></thead>
+        <thead><tr><th>Weekday</th><th>Start</th><th>End</th><th>Note</th><th></th></tr></thead>
         <tbody>
           {rows.map(r=> (
             <tr key={r.id}>
-              <td>{r.date}</td>
+               <td>{['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][r.weekday]}</td>
               <td>{r.start_time}</td>
               <td>{r.end_time}</td>
               <td>{r.note ?? ''}</td>

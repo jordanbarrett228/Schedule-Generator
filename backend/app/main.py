@@ -1,9 +1,10 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import FileResponse
 from sqlmodel import Session, select
 from pathlib import Path
+
 import os
 
 from .db import init_db, get_session
@@ -12,7 +13,8 @@ from .models.unavailable import UnavailableBlock, UnavailableBlockCreate, Unavai
 from .models.timeoff import TimeOff, TimeOffCreate, TimeOffRead
 from .models.lockedshift import LockedShift, LockedShiftCreate, LockedShiftRead
 from .models.settings import GlobalSettings, CoveragePeak, CoveragePeakCreate, CoveragePeakRead, BusinessHours, BusinessHoursRead, BusinessHoursCreate
-from fastapi import Body
+from .solver import generate_week_schedule
+from datetime import date
 
 app = FastAPI(title="Schedule Generator API", version="0.1.0")
 
@@ -219,7 +221,16 @@ def delete_peak(peak_id: int, session: Session = Depends(get_session)):
     session.commit()
     return {"ok": True}
 
-
+@app.post("/api/schedule/generate")
+def api_generate_schedule(payload: dict | None = None, session: Session = Depends(get_session)):
+    """
+    JSON payload (optional): {"week_start": "YYYY-MM-DD"}
+    If omitted, uses the upcoming Monday.
+    """
+    week_start_str = (payload or {}).get("week_start")
+    week_start = date.fromisoformat(week_start_str) if week_start_str else None
+    result = generate_week_schedule(session, week_start=week_start)
+    return result
 
 # ---- Serve React build in production ----
 FRONTEND_DIST = (

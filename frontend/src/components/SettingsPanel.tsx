@@ -23,6 +23,7 @@ export type CoveragePeak = {
 
 const weekdays = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
 
+
 export function SettingsPanel() {
   const [gs, setGs] = useState<GlobalSettings | null>(null)
   const [bh, setBh] = useState<BusinessHours[]>([])
@@ -31,13 +32,16 @@ export function SettingsPanel() {
 
   async function load(){
     setLoading(true)
-    const [g, b, p] = await Promise.all([
+    const [g, rawBh, p] = await Promise.all([
       fetch('/api/settings/global').then(r=>r.json()),
       fetch('/api/settings/business_hours').then(r=>r.json()),
       fetch('/api/coverage/peaks').then(r=>r.json()),
     ])
     setGs(g)
-    setBh(b)
+
+    // Use API-provided business hours directly. Backend is responsible for defaults.
+    setBh(rawBh)
+
     setPeaks(p)
     setLoading(false)
   }

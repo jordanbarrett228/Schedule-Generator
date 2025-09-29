@@ -38,14 +38,18 @@ def init_db() -> None:
         # Seed BusinessHours for 7 days if missing
         have = session.exec(select(BusinessHours)).all()
         if not have:
+            # New defaults:
+            # Mon-Fri: 04:45 - 21:15
+            # Sat: 05:45 - 21:15
+            # Sun: 11:45 - 18:15
             defaults = {
-                0: (time(8,0), time(21,0)),
-                1: (time(8,0), time(21,0)),
-                2: (time(8,0), time(21,0)),
-                3: (time(8,0), time(21,0)),
-                4: (time(8,0), time(21,0)),
-                5: (time(10,0), time(18,0)),  # Sat example
-                6: (time(10,0), time(18,0)),  # Sun example
+                0: (time(4,45), time(21,15)),
+                1: (time(4,45), time(21,15)),
+                2: (time(4,45), time(21,15)),
+                3: (time(4,45), time(21,15)),
+                4: (time(4,45), time(21,15)),
+                5: (time(5,45), time(21,15)),  # Sat
+                6: (time(11,45), time(18,15)),  # Sun
             }
             for wd, (op, cl) in defaults.items():
                 session.add(BusinessHours(weekday=wd, open_time=op, close_time=cl))

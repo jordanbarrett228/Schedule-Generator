@@ -5,16 +5,17 @@ class EmployeeBase(SQLModel):
     name: str
     active: bool = True  # treat as "include in generation" toggle for now
     # Hard constraints (per-employee caps)
-    min_hours_week: float = 0
+    min_hours_week: float = 20
     max_hours_week: float = 40
-    min_shift_hours: float = 3
+    min_shift_hours: float = 4
     max_shift_hours: float = 8
     # Soft preferences
     preferred_hours: Optional[float] = None
-    prefer_opening: bool = False
-    prefer_mid: bool = False
-    prefer_closing: bool = False
+    prefer_opening: bool = True
+    prefer_mid: bool = True
+    prefer_closing: bool = True
     max_consecutive_days: Optional[int] = None
+    allow_split_shifts: bool = False
 
 class Employee(EmployeeBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -37,3 +38,4 @@ class EmployeeUpdate(SQLModel):
     prefer_mid: Optional[bool] = None
     prefer_closing: Optional[bool] = None
     max_consecutive_days: Optional[int] = None
+    allow_split_shifts: Optional[bool] = None
