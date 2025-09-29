@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react'
 import { hhmmToMin, format12 } from '../lib/time'
-
+import type { JSX } from 'react/jsx-runtime';
 type CoverageSegment = { start: string; end: string; count: number }
 type CoverageDay = {
   weekday: number
@@ -10,88 +9,33 @@ type CoverageDay = {
   segments: CoverageSegment[]
 }
 
-function computeDefaultProbe(data: CoverageDay[]): number {
-  const first = data.find((d) => d.open && d.close)
-  if (!first) return 12 * 60
-  return Math.floor((hhmmToMin(first.open!) + hhmmToMin(first.close!)) / 2)
-}
-
 type Props = {
   data: CoverageDay[]
   minStaffDefault: number
-  maxEmployees?: number
-  showProbe?: boolean
 }
 
-export function CoverageTimeline({
-  data,
-  minStaffDefault,
-  showProbe = true,
-}: Props) {
-  const [probeMin, setProbeMin] = useState<number>(() => computeDefaultProbe(data))
-  useEffect(() => {
-    setProbeMin(computeDefaultProbe(data))
-  }, [data])
-
-  const countAt = (day: CoverageDay, minute: number) => {
-    if (!day.open || !day.close) return 0
-    const o = hhmmToMin(day.open)
-    const c = hhmmToMin(day.close)
-    if (minute < o || minute >= c) return 0
-    for (const seg of day.segments) {
-      const s = hhmmToMin(seg.start)
-      const e = hhmmToMin(seg.end)
-      if (minute >= s && minute < e) return seg.count
-    }
-    return 0
-  }
-
+export function CoverageTimeline({ data, minStaffDefault }: Props) {
   const colorFor = (count: number) => {
-    if (count <= 0) return '#fee2e2' // red-100: under 1
-    if (count < minStaffDefault) return '#fde68a' // amber-200: below target
-    if (count === minStaffDefault) return '#bbf7d0' // green-200: meets target
-    return '#bfdbfe' // blue-200: exceeds target
+    if (count <= 0) return '#fee2e2'            // under 1
+    if (count < minStaffDefault) return '#fde68a' // below target
+    if (count === minStaffDefault) return '#bbf7d0' // meets target
+    return '#bfdbfe'                             // exceeds target
   }
 
   return (
-    <div className="timeline grid" style={{ gap: 8 }}>
-      <div className="legend">
+    <div className="timeline grid" style={{ gap: 16 }}>
+      <div className="legend" style={{ marginBottom: 2 }}>
         <span className="legend-swatch" style={{ background: '#fee2e2' }} /> 0
         <span className="legend-swatch" style={{ background: '#fde68a' }} /> &lt; {minStaffDefault}
         <span className="legend-swatch" style={{ background: '#bbf7d0' }} /> = {minStaffDefault}
         <span className="legend-swatch" style={{ background: '#bfdbfe' }} /> &gt; {minStaffDefault}
       </div>
 
-      {showProbe && (
-        <div className="timeline-controls row" style={{ gap: 8 }}>
-          <span className="label">Quick check</span>
-          <input
-            className="input"
-            type="time"
-            step={900}
-            value={`${String(Math.floor(probeMin / 60)).padStart(2, '0')}:${String(
-              probeMin % 60
-            ).padStart(2, '0')}`}
-            onChange={(e) => {
-              const [h, m] = e.target.value.split(':').map(Number)
-              setProbeMin(h * 60 + m)
-            }}
-          />
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-            {format12(
-              `${String(Math.floor(probeMin / 60)).padStart(2, '0')}:${String(
-                probeMin % 60
-              ).padStart(2, '0')}`
-            )}
-          </span>
-        </div>
-      )}
-
       {data.map((day) => {
         if (!day.open || !day.close) {
           return (
             <div key={day.weekday} className="timeline-row">
-              <div className="label">{day.weekday_name}</div>
+              <div className="label"> {day.weekday_name} </div>
               <div className="timeline-bar" style={{ justifyContent: 'center' }}>
                 <span className="label">Closed</span>
               </div>
@@ -105,10 +49,9 @@ export function CoverageTimeline({
 
         return (
           <div key={day.weekday} className="timeline-row">
-            <div className="label" style={{ width: 80 }}>
-              {day.weekday_name}
-            </div>
-            <div className="timeline-bar" style={{ position: 'relative' }}>
+            <div className="label" style={{ width: 130 }}>{day.weekday_name}</div>
+            <div className="timeline-bar">
+              {/* Colored segments with counts */}
               {day.segments.map((seg, idx) => {
                 const s = hhmmToMin(seg.start)
                 const e = hhmmToMin(seg.end)
@@ -130,34 +73,53 @@ export function CoverageTimeline({
                 )
               })}
 
-              {/* Hour ticks */}
+              {/* Hour ticks + labels (above the bar) */}
               {(() => {
-                const nodes = []
+                const nodes: JSX.Element[] = []
                 let h = Math.ceil(openM / 60) * 60
                 for (; h < closeM; h += 60) {
                   const left = ((h - openM) / spanM) * 100
-                  nodes.push(<div key={h} className="tick-hour" style={{ left: `${left}%` }} />)
+                  const hhmm = `${String(Math.floor(h / 60)).padStart(2, '0')}:${String(h % 60).padStart(2, '0')}`
+                  nodes.push(<div key={`t-${h}`} className="tick-hour" style={{ left: `${left}%` }} />)
+                  nodes.push(
+                    <div key={`tl-${h}`} className="tick-label" style={{ left: `${left}%` }}>
+                      {format12(hhmm)}
+                    </div>
+                  )
                 }
                 return nodes
               })()}
 
-              {/* Probe line */}
-              {probeMin >= openM && probeMin <= closeM && (
-                <div
-                  className="probe-line"
-                  style={{ left: `${((probeMin - openM) / spanM) * 100}%` }}
-                />
-              )}
-            </div>
+              {/* Change lines + labels (below bar) with overlap culling */}
+              {(() => {
+                const nodes: JSX.Element[] = []
+                let lastLeftPct = -999
+                const minGapPct = 8  // require 8% of bar width between labels
 
-            <div className="count-pill">{countAt(day, probeMin)}</div>
+                for (let i = 1; i < day.segments.length; i++) {
+                  const cpMin = hhmmToMin(day.segments[i].start)
+                  const leftPct = ((cpMin - openM) / spanM) * 100
 
-            <div
-              className="row"
-              style={{ justifyContent: 'space-between', fontSize: 12, color: 'var(--muted)' }}
-            >
-              <span>{format12(day.open)}</span>
-              <span>{format12(day.close)}</span>
+                  // Cull if too close to previous label
+                  if (leftPct - lastLeftPct < minGapPct) {
+                    nodes.push(<div key={`cl-${i}`} className="change-line" style={{ left: `${leftPct}%` }} />)
+                    continue
+                  }
+
+                  nodes.push(<div key={`cl-${i}`} className="change-line" style={{ left: `${leftPct}%` }} />)
+                  nodes.push(
+                    <div key={`lbl-${i}`} className="change-label" style={{ left: `${leftPct}%` }}>
+                      {format12(day.segments[i].start)}
+                    </div>
+                  )
+                  lastLeftPct = leftPct
+                }
+
+                // Edge labels (bottom corners)
+                nodes.push(<div key="edgeL" className="edge-label left">{format12(day.open)}</div>)
+                nodes.push(<div key="edgeR" className="edge-label right">{format12(day.close)}</div>)
+                return nodes
+              })()}
             </div>
           </div>
         )
