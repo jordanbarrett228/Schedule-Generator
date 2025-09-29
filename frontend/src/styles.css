@@ -1,16 +1,29 @@
-:root { --gap: 12px; --pad: 16px; }
-body { font-family: system-ui, ui-sans-serif, Segoe UI, Roboto, Arial, sans-serif; }
-.button { padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; background: #fff; cursor: pointer; }
+:root { --gap: 12px; --pad: 16px; --bg: #f7f7f9; --ink: #111; --muted: #666; --border: #e5e7eb; }
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body { margin:0; font-family: system-ui, ui-sans-serif, Segoe UI, Roboto, Arial, sans-serif; color: var(--ink); background: var(--bg); }
+
+.app-shell { min-height: 100%; display: grid; grid-template-rows: auto 1fr; }
+.topnav { display:flex; align-items:center; justify-content:space-between; padding: 10px 16px; background:#fff; border-bottom: 1px solid var(--border); position: sticky; top:0; z-index:5; }
+.topnav .brand { font-weight: 600; }
+.topnav .links { display:flex; gap: 12px; }
+.topnav a { text-decoration: none; color: var(--muted); padding: 6px 10px; border-radius: 8px; }
+.topnav a.active { background: #111; color: #fff; }
+
+.content { padding: 20px; max-width: 1100px; margin: 0 auto; }
+
+.button { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--ink); cursor: pointer; }
+.button:hover { filter: brightness(0.97); }
 .button.primary { background: #111; color: #fff; border-color: #111; }
-.input, select { padding: 8px; border: 1px solid #ddd; border-radius: 8px; }
+.input, select { padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--ink); }
 .row { display: flex; gap: var(--gap); align-items: center; }
 .grid { display: grid; gap: var(--gap); }
-.label { font-size: 12px; color: #444; }
+.label { font-size: 12px; color: var(--muted); }
+.section { border: 1px solid var(--border); border-radius: 12px; padding: var(--pad); background:#fff; }
+.table { width: 100%; border-collapse: collapse; background:#fff; }
+.table th, .table td { padding: 10px; border-bottom: 1px solid var(--border); text-align: left; }
 
-/* Modal */
 .modal-backdrop { position: fixed; inset:0; background: rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; }
 .modal { width: min(900px, 96vw); max-height: 90vh; overflow:auto; background:#fff; border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,0.2); padding: 20px; }
 .modal header { display:flex; align-items:center; justify-content:space-between; margin-bottom: 12px; }
-.section { border: 1px solid #eee; border-radius: 12px; padding: var(--pad); }
-.table { width: 100%; border-collapse: collapse; }
-.table th, .table td { padding: 8px; border-bottom: 1px solid #eee; }

@@ -20,21 +20,35 @@ engine = create_engine(
 )
 
 def init_db() -> None:
-    # Import models so SQLModel sees them
     from .models.employee import Employee  # noqa: F401
     from .models.unavailable import UnavailableBlock  # noqa: F401
     from .models.timeoff import TimeOff  # noqa: F401
     from .models.lockedshift import LockedShift  # noqa: F401
-    from .models.settings import GlobalSettings, CoveragePeak  # noqa: F401
+    from .models.settings import GlobalSettings, CoveragePeak, BusinessHours  # noqa: F401
 
     SQLModel.metadata.create_all(engine)
 
-    # Ensure one GlobalSettings row
     with Session(engine) as session:
-        existing = session.exec(select(GlobalSettings)).first()
-        if not existing:
-            gs = GlobalSettings(min_staff_default=2, business_open=time(8,0), business_close=time(21,0))
+        # Ensure one GlobalSettings row
+        gs = session.exec(select(GlobalSettings)).first()
+        if not gs:
+            gs = GlobalSettings(min_staff_default=2)
             session.add(gs)
+            session.commit()
+        # Seed BusinessHours for 7 days if missing
+        have = session.exec(select(BusinessHours)).all()
+        if not have:
+            defaults = {
+                0: (time(8,0), time(21,0)),
+                1: (time(8,0), time(21,0)),
+                2: (time(8,0), time(21,0)),
+                3: (time(8,0), time(21,0)),
+                4: (time(8,0), time(21,0)),
+                5: (time(10,0), time(18,0)),  # Sat example
+                6: (time(10,0), time(18,0)),  # Sun example
+            }
+            for wd, (op, cl) in defaults.items():
+                session.add(BusinessHours(weekday=wd, open_time=op, close_time=cl))
             session.commit()
 
 

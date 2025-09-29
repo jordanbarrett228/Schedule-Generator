@@ -11,7 +11,8 @@ from .models.employee import Employee, EmployeeCreate, EmployeeRead, EmployeeUpd
 from .models.unavailable import UnavailableBlock, UnavailableBlockCreate, UnavailableBlockRead
 from .models.timeoff import TimeOff, TimeOffCreate, TimeOffRead
 from .models.lockedshift import LockedShift, LockedShiftCreate, LockedShiftRead
-from .models.settings import GlobalSettings, CoveragePeak, CoveragePeakCreate, CoveragePeakRead
+from .models.settings import GlobalSettings, CoveragePeak, CoveragePeakCreate, CoveragePeakRead, BusinessHours, BusinessHoursRead, BusinessHoursCreate
+from fastapi import Body
 
 app = FastAPI(title="Schedule Generator API", version="0.1.0")
 
@@ -174,6 +175,25 @@ def update_global_settings(payload: GlobalSettings, session: Session = Depends(g
     session.refresh(gs)
     return gs
 
+# ---- Business Hours (per-day) ----
+@app.get("/api/settings/business_hours", response_model=list[BusinessHoursRead])
+def get_business_hours(session: Session = Depends(get_session)):
+    return session.exec(select(BusinessHours).order_by(BusinessHours.weekday)).all()
+
+@app.put("/api/settings/business_hours", response_model=list[BusinessHoursRead])
+def put_business_hours(payload: list[BusinessHoursCreate] = Body(...), session: Session = Depends(get_session)):
+    # Upsert by weekday (unique by design for simplicity)
+    existing = {bh.weekday: bh for bh in session.exec(select(BusinessHours)).all()}
+    for item in payload:
+        if item.weekday in existing:
+            rec = existing[item.weekday]
+            rec.open_time = item.open_time
+            rec.close_time = item.close_time
+            session.add(rec)
+        else:
+            session.add(BusinessHours.model_validate(item))
+    session.commit()
+    return session.exec(select(BusinessHours).order_by(BusinessHours.weekday)).all()
 
 # ---- Coverage peaks ----
 @app.get("/api/coverage/peaks", response_model=list[CoveragePeakRead])

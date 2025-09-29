@@ -9,8 +9,20 @@ from sqlalchemy.types import Time as SATime, Date as SADate
 class GlobalSettings(SQLModel, table=True):
     id: Optional[int] = Field(default=1, primary_key=True)
     min_staff_default: int = Field(default=2)
-    business_open: dt.time = Field(default=dt.time(8, 0), sa_column=Column(SATime))
-    business_close: dt.time = Field(default=dt.time(21, 0), sa_column=Column(SATime))
+
+class BusinessHoursBase(SQLModel):
+    weekday: int  # 0=Mon..6=Sun
+    open_time: dt.time = Field(sa_column=Column(SATime))
+    close_time: dt.time = Field(sa_column=Column(SATime))
+
+class BusinessHours(BusinessHoursBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+
+class BusinessHoursCreate(BusinessHoursBase):
+    pass
+
+class BusinessHoursRead(BusinessHoursBase):
+    id: int
 
 class CoveragePeakBase(SQLModel):
     # Provide EITHER a specific date OR a weekday (0=Mon..6=Sun)
