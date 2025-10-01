@@ -284,11 +284,11 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
                   onChange={e=>setEmp({...emp, target_days_off: e.target.value ? +e.target.value : null})}
                 />
               </div>
-              <div className="row" style={{gap:16}}>
+              {/* <div className="row" style={{gap:16}}>
                 <label className="row" style={{gap:6}}><input type="checkbox" checked={emp.prefer_opening} onChange={e=>setEmp({...emp, prefer_opening:e.target.checked})}/> Opening</label>
                 <label className="row" style={{gap:6}}><input type="checkbox" checked={emp.prefer_mid} onChange={e=>setEmp({...emp, prefer_mid:e.target.checked})}/> Mid</label>
                 <label className="row" style={{gap:6}}><input type="checkbox" checked={emp.prefer_closing} onChange={e=>setEmp({...emp, prefer_closing:e.target.checked})}/> Closing</label>
-              </div>
+              </div> */}
             </div>
           </div>
         </div>
