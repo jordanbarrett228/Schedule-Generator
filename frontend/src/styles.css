@@ -122,3 +122,8 @@ body { margin:0; font-family: system-ui, ui-sans-serif, Segoe UI, Roboto, Arial,
 }
 .shift-time { font-weight: 600; }
 .shift-employee { color: var(--muted); }
+
+.time12 { display:inline-flex; align-items:center; gap:4px; }
+.time12 select { padding:4px 6px; border:1px solid var(--border); border-radius:6px; }
+.time12--sm select { padding:2px 4px; font-size:0.9rem; }
+.time12__sep { opacity:0.7; }

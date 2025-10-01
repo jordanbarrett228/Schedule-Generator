@@ -16,6 +16,7 @@ from .models.settings import GlobalSettings, BusinessHours, BusinessHoursRead, B
 from .solver import generate_week_schedule
 from datetime import date
 from .routers import staffing_windows
+from .routers import unavailable_rt
 
 try:
     import debugpy
@@ -26,6 +27,7 @@ except Exception:
 
 app = FastAPI(title="Schedule Generator API", version="0.1.0")
 app.include_router(staffing_windows.router, prefix="/api/staffing-windows", tags=["staffing-windows"])
+app.include_router(unavailable_rt.router)
 
 # DEV CORS (only needed while vite dev server is used)
 if os.environ.get("DEV", "0") == "1":

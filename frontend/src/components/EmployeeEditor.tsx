@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { format12 } from '../lib/time';
 
 export type Employee = {
   id: number
@@ -80,15 +81,30 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
     await fetch(`/api/unavailable/${id}`, { method:'DELETE' })
     setUnavail(p=>p.filter(x=>x.id!==id))
   }
+  const updateUnavail = async (id: number, weekday: number, start: string, end: string) => {
+    const res = await fetch(`/api/unavailable/${id}`, {
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ weekday, start_time: start, end_time: end })
+    })
+    if (!res.ok) {
+      const txt = await res.text()
+      alert(`Failed to update: ${txt}`)
+      return
+    }
+    const rec = await res.json()
+    setUnavail(p => p.map(x => x.id === id ? { ...x, weekday: rec.weekday, start_time: rec.start_time, end_time: rec.end_time } : x))
+  }
 
   const addTimeOff = async (date: string, all_day: boolean, start_time?: string|null, end_time?: string|null, reason?: string) => {
-  const res = await fetch(`/api/employees/${empId}/timeoff`, {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ employee_id: empId, date, all_day, start_time, end_time, reason })
-  })
-  const rec = await res.json()
-  setTimeOff(p=>[...p, rec])
-}
+    const res = await resFetch(`/api/employees/${empId}/timeoff`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ employee_id: empId, date, all_day, start_time, end_time, reason })
+    })
+    const rec = await res.json()
+    setTimeOff(p=>[...p, rec])
+  }
+  // small helper so we don't shadow res var name above
+  function resFetch(input: RequestInfo | URL, init?: RequestInit) { return fetch(input, init) }
 
   const delTimeOff = async (id: number) => {
     await fetch(`/api/timeoff/${id}`, { method:'DELETE' })
@@ -153,47 +169,47 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
                   onChange={e=>setEmp({...emp, max_shift_hours: +e.target.value})} />
               </div>
               <label className="row" style={{gap:8}}>
-              <input
+                <input
                   type="checkbox"
                   checked={emp.capable_opening}
                   onChange={e=>setEmp({...emp, capable_opening: e.target.checked})}
-              />
-              Capable of opening
+                />
+                Capable of opening
               </label>
 
               <div className="row" style={{gap:8}}>
-              <div className="label">If NOT opening, earliest start</div>
-              <input
+                <div className="label">If NOT opening, earliest start</div>
+                <input
                   className="input"
                   type="time"
                   value={emp.open_not_before ?? '07:00'}
                   onChange={e=>setEmp({...emp, open_not_before: e.target.value })}
-              />
+                />
               </div>
 
               <label className="row" style={{gap:8}}>
-              <input
+                <input
                   type="checkbox"
                   checked={emp.no_clopen}
                   onChange={e=>setEmp({...emp, no_clopen: e.target.checked})}
-              />
-              No clopen (no opening next day after closing)
+                />
+                No clopen (no opening next day after closing)
               </label>
 
               <div className="row" style={{gap:8}}>
-              <div className="label">If closed yesterday, earliest next-day start</div>
-              <input
+                <div className="label">If closed yesterday, earliest next-day start</div>
+                <input
                   className="input"
                   type="time"
                   value={emp.clopen_next_day_not_before ?? '09:00'}
                   onChange={e=>setEmp({...emp, clopen_next_day_not_before: e.target.value })}
-              />
+                />
               </div>
 
               <label className="row" style={{gap:8}}>
                 <input type="checkbox" checked={emp.allow_split_shifts}
                   onChange={e=>setEmp({...emp, allow_split_shifts: e.target.checked})} />
-                    Allow split shifts (max 2/day)
+                Allow split shifts (max 2/day)
               </label>
               {/* <div>
                 <div className="label">Max consecutive days (soft)</div>
@@ -201,10 +217,15 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
                   onChange={e=>setEmp({...emp, max_consecutive_days: e.target.value? +e.target.value : null})} />
               </div> */}
             </div>
-            
+
             <div className="grid" style={{gap:8}}>
               <strong>Unavailable (weekly)</strong>
-              <UnavailableEditor rows={unavail} onAdd={addUnavail} onDelete={delUnavail} />
+              <UnavailableEditor
+                rows={unavail}
+                onAdd={addUnavail}
+                onDelete={delUnavail}
+                onUpdate={updateUnavail}
+              />
             </div>
 
             <div className="grid" style={{gap:8}}>
@@ -227,15 +248,15 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
                   onChange={e=>setEmp({...emp, preferred_hours: e.target.value? +e.target.value : null})} />
               </div>
               <div>
-              <div className="label">Target days off/week (0–7)</div>
-              <input
+                <div className="label">Target days off/week (0–7)</div>
+                <input
                   className="input"
                   type="number"
                   min={0}
                   max={7}
                   value={emp.target_days_off ?? ''}
                   onChange={e=>setEmp({...emp, target_days_off: e.target.value ? +e.target.value : null})}
-              />
+                />
               </div>
               <div className="row" style={{gap:16}}>
                 <label className="row" style={{gap:6}}><input type="checkbox" checked={emp.prefer_opening} onChange={e=>setEmp({...emp, prefer_opening:e.target.checked})}/> Opening</label>
@@ -250,10 +271,53 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
   )
 }
 
-function UnavailableEditor({ rows, onAdd, onDelete }:{ rows:UnavailableBlock[], onAdd:(weekday:number,start:string,end:string)=>void, onDelete:(id:number)=>void }){
+function UnavailableEditor({
+  rows,
+  onAdd,
+  onDelete,
+  onUpdate
+}:{
+  rows:UnavailableBlock[],
+  onAdd:(weekday:number,start:string,end:string)=>void,
+  onDelete:(id:number)=>void,
+  onUpdate:(id:number, weekday:number, start:string, end:string)=>void
+}){
   const [weekday, setWeekday] = useState(0)
   const [start, setStart] = useState('09:00')
   const [end, setEnd] = useState('17:00')
+
+  // inline edit state
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editDay, setEditDay] = useState<number>(0)
+  const [editStart, setEditStart] = useState<string>('09:00')
+  const [editEnd, setEditEnd] = useState<string>('17:00')
+
+  const beginEdit = (r: UnavailableBlock) => {
+    setEditingId(r.id)
+    setEditDay(r.weekday)
+    setEditStart(r.start_time)
+    setEditEnd(r.end_time)
+  }
+  const cancelEdit = () => {
+    setEditingId(null)
+  }
+  const saveEdit = async () => {
+    if (editingId == null) return
+    if (!editStart || !editEnd || editStart >= editEnd) {
+      alert('End time must be after start time.')
+      return
+    }
+    await onUpdate(editingId, editDay, editStart, editEnd)
+    setEditingId(null)
+  }
+
+  // shared cell styles so edit/display rows match widths
+  const tdDayStyle   = { width: 120 } as const
+  const tdTimeStyle  = { width: 140 } as const
+  const tdActStyle   = { width: 200, whiteSpace: 'nowrap' } as const
+  const inputFull    = { width: '100%', boxSizing: 'border-box' } as const
+  const selectFull   = { width: '100%' } as const
+
   return (
     <div className="grid" style={{gap:8}}>
       <div className="row" style={{gap:8, flexWrap:'wrap'}}>
@@ -264,22 +328,69 @@ function UnavailableEditor({ rows, onAdd, onDelete }:{ rows:UnavailableBlock[], 
         <input className="input" type="time" value={end} onChange={e=>setEnd(e.target.value)} />
         <button className="button" onClick={()=>onAdd(weekday,start,end)}>Add</button>
       </div>
-      <table className="table">
-        <thead><tr><th>Day</th><th>Start</th><th>End</th><th></th></tr></thead>
+
+      <table className="table" style={{ tableLayout: 'fixed', width: '100%' }}>
+        {/* Fix column widths so nothing shifts in edit mode */}
+        <colgroup>
+          <col style={tdDayStyle} />
+          <col style={tdTimeStyle} />
+          <col style={tdTimeStyle} />
+          <col style={tdActStyle} />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Day</th>
+            <th>Start</th>
+            <th>End</th>
+            <th></th>
+          </tr>
+        </thead>
         <tbody>
-          {rows.map(r=> (
-            <tr key={r.id}>
-              <td>{weekdays[r.weekday]}</td>
-              <td>{r.start_time}</td>
-              <td>{r.end_time}</td>
-              <td><button className="button" onClick={()=>onDelete(r.id)}>Delete</button></td>
-            </tr>
-          ))}
+          {rows.map(r=> {
+            const isEditing = editingId === r.id
+            if (isEditing) {
+              return (
+                <tr key={r.id}>
+                  <td style={tdDayStyle}>
+                    <select style={selectFull} value={editDay} onChange={e=>setEditDay(+e.target.value)}>
+                      {weekdays.map((w,i)=>(<option key={i} value={i}>{w}</option>))}
+                    </select>
+                  </td>
+                  <td style={tdTimeStyle}>
+                    <input style={inputFull} className="input" type="time" value={editStart} onChange={e=>setEditStart(e.target.value)} />
+                  </td>
+                  <td style={tdTimeStyle}>
+                    <input style={inputFull} className="input" type="time" value={editEnd} onChange={e=>setEditEnd(e.target.value)} />
+                  </td>
+                  <td style={tdActStyle}>
+                    <div style={{display:'flex', gap:8, justifyContent:'flex-end'}}>
+                      <button className="button primary" onClick={saveEdit}>Save</button>
+                      <button className="button" onClick={cancelEdit}>Cancel</button>
+                    </div>
+                  </td>
+                </tr>
+              )
+            }
+            return (
+              <tr key={r.id}>
+                <td style={tdDayStyle}>{weekdays[r.weekday]}</td>
+                <td style={tdTimeStyle}>{format12(r.start_time)}</td>
+                <td style={tdTimeStyle}>{format12(r.end_time)}</td>
+                <td style={tdActStyle}>
+                  <div style={{display:'flex', gap:8, justifyContent:'flex-end'}}>
+                    <button className="button" onClick={()=>beginEdit(r)}>Edit</button>
+                    <button className="button" onClick={()=>onDelete(r.id)}>Delete</button>
+                  </div>
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>
   )
 }
+
 
 function TimeOffEditor({
   rows, onAdd, onDelete
@@ -331,7 +442,6 @@ function TimeOffEditor({
   )
 }
 
-
 function LockedEditor({ rows, onAdd, onDelete }:{ rows:LockedShift[], onAdd:(weekday:number,start:string,end:string,note:string)=>void, onDelete:(id:number)=>void }){
   const [weekday, setWeekday] = useState(0)
   const [start, setStart] = useState('09:00')
@@ -341,10 +451,10 @@ function LockedEditor({ rows, onAdd, onDelete }:{ rows:LockedShift[], onAdd:(wee
     <div className="grid" style={{gap:8}}>
       <div className="row" style={{gap:8, flexWrap:'wrap'}}>
         <select value={weekday} onChange={e=>setWeekday(+e.target.value)}>
-+          {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((w,i)=>(<option key={i} value={i}>{w}</option>))}
-+        </select>
-+        <input className="input" type="time" value={start} onChange={e=>setStart(e.target.value)} />
-+        <input className="input" type="time" value={end} onChange={e=>setEnd(e.target.value)} />
+          {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((w,i)=>(<option key={i} value={i}>{w}</option>))}
+        </select>
+        <input className="input" type="time" value={start} onChange={e=>setStart(e.target.value)} />
+        <input className="input" type="time" value={end} onChange={e=>setEnd(e.target.value)} />
         <input className="input" placeholder="Note (optional)" value={note} onChange={e=>setNote(e.target.value)} />
         <button className="button" onClick={()=> onAdd(weekday,start,end,note)}>Add</button>
       </div>
@@ -353,7 +463,7 @@ function LockedEditor({ rows, onAdd, onDelete }:{ rows:LockedShift[], onAdd:(wee
         <tbody>
           {rows.map(r=> (
             <tr key={r.id}>
-               <td>{['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][r.weekday]}</td>
+              <td>{['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][r.weekday]}</td>
               <td>{r.start_time}</td>
               <td>{r.end_time}</td>
               <td>{r.note ?? ''}</td>
