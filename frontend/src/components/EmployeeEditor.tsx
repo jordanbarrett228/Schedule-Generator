@@ -110,7 +110,7 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
     await fetch(`/api/timeoff/${id}`, { method:'DELETE' })
     setTimeOff(p=>p.filter(x=>x.id!==id))
   }
-
+  
   const addLocked = async (weekday: number, start_time: string, end_time: string, note: string) => {
     const res = await fetch(`/api/employees/${empId}/locked_shifts`, {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -119,10 +119,36 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
     const rec = await res.json()
     setLocked(p=>[...p, rec])
   }
+
   const delLocked = async (id: number) => {
     await fetch(`/api/locked_shifts/${id}`, { method:'DELETE' })
     setLocked(p=>p.filter(x=>x.id!==id))
   }
+
+  const updateLocked = async (id: number, weekday: number, start_time: string, end_time: string, note: string) => {
+    if (!start_time || !end_time || start_time >= end_time) {
+      alert('End time must be after start time.')
+      return
+    }
+    const res = await fetch(`/api/employees/${empId}/locked_shifts/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ weekday, start_time, end_time, note }),
+    });
+    if (!res.ok) {
+      const t = await res.text()
+      alert(`Failed to update: ${t}`)
+      return
+    }
+    const rec = await res.json()
+    setLocked(p =>
+      p.map(x => x.id === id
+        ? { ...x, weekday: rec.weekday, start_time: rec.start_time, end_time: rec.end_time, note: rec.note ?? '' }
+        : x
+      )
+    )
+  }
+
 
   if (loading || !emp) return (
     <div className="modal-backdrop"><div className="modal"><header><h3>Loading…</h3><button className="button" onClick={onClose}>Close</button></header></div></div>
@@ -235,7 +261,7 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
 
             <div className="grid" style={{gap:8}}>
               <strong>Fixed Shifts (locked)</strong>
-              <LockedEditor rows={locked} onAdd={addLocked} onDelete={delLocked} />
+              <LockedEditor rows={locked} onAdd={addLocked} onDelete={delLocked} onUpdate={updateLocked} />
             </div>
           </div>
 
@@ -442,11 +468,62 @@ function TimeOffEditor({
   )
 }
 
-function LockedEditor({ rows, onAdd, onDelete }:{ rows:LockedShift[], onAdd:(weekday:number,start:string,end:string,note:string)=>void, onDelete:(id:number)=>void }){
+function LockedEditor({
+  rows,
+  onAdd,
+  onDelete,
+  onUpdate
+}:{
+  rows:LockedShift[],
+  onAdd:(weekday:number,start:string,end:string,note:string)=>void,
+  onDelete:(id:number)=>void,
+  onUpdate:(id:number, weekday:number, start:string, end:string, note:string)=>void
+}) {
   const [weekday, setWeekday] = useState(0)
   const [start, setStart] = useState('09:00')
   const [end, setEnd] = useState('17:00')
   const [note, setNote] = useState('')
+
+  // inline edit state
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editDay, setEditDay] = useState<number>(0)
+  const [editStart, setEditStart] = useState<string>('09:00')
+  const [editEnd, setEditEnd] = useState<string>('17:00')
+  const [editNote, setEditNote] = useState<string>('')
+
+  const beginEdit = (r: LockedShift) => {
+    setEditingId(r.id)
+    setEditDay(r.weekday)
+    setEditStart(r.start_time)
+    setEditEnd(r.end_time)
+    setEditNote(r.note ?? '')
+  }
+  const cancelEdit = () => {
+    setEditingId(null)
+  }
+  const saveEdit = async () => {
+    if (editingId == null) return
+    await onUpdate(editingId, editDay, editStart, editEnd, editNote)
+    setEditingId(null)
+  }
+
+  // helpers for duration + totals
+  const toMin = (hhmm: string) => {
+    const [h, m] = hhmm.split(':').map(n => parseInt(n || '0', 10))
+    return (h * 60) + m
+  }
+  const durHours = (s: string, e: string) => Math.max(0, toMin(e) - toMin(s)) / 60
+  const totalMinutes = rows.reduce((acc, r) => acc + Math.max(0, toMin(r.end_time) - toMin(r.start_time)), 0)
+  const totalHours = (totalMinutes / 60).toFixed(2)
+
+  // fixed widths so columns don’t shift in edit mode
+  const tdDayStyle  = { width: 120 } as const
+  const tdTimeStyle = { width: 260 } as const
+  const tdNoteStyle = { width: 1 } as const  // flexible
+  const tdActStyle  = { width: 200, whiteSpace: 'nowrap' } as const
+  const inputFull   = { width: '100%', boxSizing: 'border-box' } as const
+  const selectFull  = { width: '100%' } as const
+
   return (
     <div className="grid" style={{gap:8}}>
       <div className="row" style={{gap:8, flexWrap:'wrap'}}>
@@ -458,18 +535,77 @@ function LockedEditor({ rows, onAdd, onDelete }:{ rows:LockedShift[], onAdd:(wee
         <input className="input" placeholder="Note (optional)" value={note} onChange={e=>setNote(e.target.value)} />
         <button className="button" onClick={()=> onAdd(weekday,start,end,note)}>Add</button>
       </div>
-      <table className="table">
-        <thead><tr><th>Weekday</th><th>Start</th><th>End</th><th>Note</th><th></th></tr></thead>
+
+      <div className="muted" style={{marginTop:4}}>
+        <strong>Total locked hours this week:</strong> {totalHours} h
+      </div>
+
+      <table className="table" style={{ tableLayout: 'fixed', width: '100%' }}>
+        <colgroup>
+          <col style={tdDayStyle} />
+          <col style={tdTimeStyle} />
+          <col style={tdNoteStyle} />
+          <col style={tdActStyle} />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Weekday</th>
+            <th>Time (length)</th>
+            <th>Note</th>
+            <th></th>
+          </tr>
+        </thead>
         <tbody>
-          {rows.map(r=> (
-            <tr key={r.id}>
-              <td>{['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][r.weekday]}</td>
-              <td>{r.start_time}</td>
-              <td>{r.end_time}</td>
-              <td>{r.note ?? ''}</td>
-              <td><button className="button" onClick={()=>onDelete(r.id)}>Delete</button></td>
-            </tr>
-          ))}
+          {rows.map(r => {
+            const isEditing = editingId === r.id
+
+            if (isEditing) {
+              const lenHrs = durHours(editStart, editEnd).toFixed(2)
+              return (
+                <tr key={r.id}>
+                  <td style={tdDayStyle}>
+                    <select style={selectFull} value={editDay} onChange={e=>setEditDay(+e.target.value)}>
+                      {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((w,i)=>(<option key={i} value={i}>{w}</option>))}
+                    </select>
+                  </td>
+                  <td style={tdTimeStyle}>
+                    <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, alignItems:'center'}}>
+                      <input style={inputFull} className="input" type="time" value={editStart} onChange={e=>setEditStart(e.target.value)} />
+                      <input style={inputFull} className="input" type="time" value={editEnd} onChange={e=>setEditEnd(e.target.value)} />
+                    </div>
+                    <div className="muted" style={{marginTop:4}}>( {lenHrs} h )</div>
+                  </td>
+                  <td style={tdNoteStyle}>
+                    <input style={inputFull} className="input" value={editNote} onChange={e=>setEditNote(e.target.value)} placeholder="Note (optional)" />
+                  </td>
+                  <td style={tdActStyle}>
+                    <div style={{display:'flex', gap:8, justifyContent:'flex-end'}}>
+                      <button className="button primary" onClick={saveEdit}>Save</button>
+                      <button className="button" onClick={cancelEdit}>Cancel</button>
+                    </div>
+                  </td>
+                </tr>
+              )
+            }
+
+            const lenHrs = durHours(r.start_time, r.end_time).toFixed(2)
+            return (
+              <tr key={r.id}>
+                <td style={tdDayStyle}>{['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][r.weekday]}</td>
+                <td style={tdTimeStyle}>
+                  {format12(r.start_time)} – {format12(r.end_time)}{' '}
+                  <span className="muted">({lenHrs} h)</span>
+                </td>
+                <td style={tdNoteStyle}>{r.note ?? ''}</td>
+                <td style={tdActStyle}>
+                  <div style={{display:'flex', gap:8, justifyContent:'flex-end'}}>
+                    <button className="button" onClick={()=>beginEdit(r)}>Edit</button>
+                    <button className="button" onClick={()=>onDelete(r.id)}>Delete</button>
+                  </div>
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>

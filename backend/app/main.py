@@ -17,6 +17,7 @@ from .solver import generate_week_schedule
 from datetime import date
 from .routers import staffing_windows
 from .routers import unavailable_rt
+from app.models.lockedshift import LockedShift, LockedShiftUpdate
 
 try:
     import debugpy
@@ -156,6 +157,38 @@ def create_locked(emp_id: int, payload: LockedShiftCreate, session: Session = De
     session.commit()
     session.refresh(rec)
     return rec
+
+@app.put("/api/employees/{emp_id}/locked_shifts/{lock_id}")
+def update_locked_shift(
+    emp_id: int,
+    lock_id: int,
+    payload: LockedShiftUpdate,
+    session: Session = Depends(get_session),
+):
+    ls = session.get(LockedShift, lock_id)
+    if not ls:
+        raise HTTPException(status_code=404, detail="Locked shift not found")
+    if ls.employee_id != emp_id:
+        # lock exists but not for this employee
+        raise HTTPException(status_code=404, detail="Locked shift not found for this employee")
+
+    ls.weekday = payload.weekday
+    ls.start_time = payload.start_time
+    ls.end_time = payload.end_time
+    ls.note = payload.note
+
+    session.add(ls)
+    session.commit()
+    session.refresh(ls)
+
+    return {
+        "id": ls.id,
+        "employee_id": ls.employee_id,
+        "weekday": ls.weekday,
+        "start_time": ls.start_time.strftime("%H:%M"),
+        "end_time": ls.end_time.strftime("%H:%M"),
+        "note": ls.note or "",
+    }
 
 @app.delete("/api/locked_shifts/{rec_id}")
 def delete_locked(rec_id: int, session: Session = Depends(get_session)):
