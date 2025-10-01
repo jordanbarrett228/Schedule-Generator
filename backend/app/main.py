@@ -12,7 +12,7 @@ from .models.employee import Employee, EmployeeCreate, EmployeeRead, EmployeeUpd
 from .models.unavailable import UnavailableBlock, UnavailableBlockCreate, UnavailableBlockRead
 from .models.timeoff import TimeOff, TimeOffCreate, TimeOffRead
 from .models.lockedshift import LockedShift, LockedShiftCreate, LockedShiftRead
-from .models.settings import GlobalSettings, CoveragePeak, CoveragePeakCreate, CoveragePeakRead, BusinessHours, BusinessHoursRead, BusinessHoursCreate
+from .models.settings import GlobalSettings, BusinessHours, BusinessHoursRead, BusinessHoursCreate
 from .solver import generate_week_schedule
 from datetime import date
 from .routers import staffing_windows
@@ -205,30 +205,6 @@ def put_business_hours(payload: list[BusinessHoursCreate] = Body(...), session: 
             session.add(BusinessHours.model_validate(item))
     session.commit()
     return session.exec(select(BusinessHours).order_by(BusinessHours.weekday)).all()
-
-# ---- Coverage peaks ----
-@app.get("/api/coverage/peaks", response_model=list[CoveragePeakRead])
-def list_peaks(session: Session = Depends(get_session)):
-    return session.exec(select(CoveragePeak)).all()
-
-@app.post("/api/coverage/peaks", response_model=CoveragePeakRead)
-def create_peak(payload: CoveragePeakCreate, session: Session = Depends(get_session)):
-    if payload.date is None and payload.weekday is None:
-        raise HTTPException(status_code=400, detail="Provide either date or weekday")
-    rec = CoveragePeak.model_validate(payload)
-    session.add(rec)
-    session.commit()
-    session.refresh(rec)
-    return rec
-
-@app.delete("/api/coverage/peaks/{peak_id}")
-def delete_peak(peak_id: int, session: Session = Depends(get_session)):
-    rec = session.get(CoveragePeak, peak_id)
-    if not rec:
-        raise HTTPException(status_code=404, detail="Peak not found")
-    session.delete(rec)
-    session.commit()
-    return {"ok": True}
 
 @app.post("/api/schedule/generate")
 def api_generate_schedule(payload: dict | None = None, session: Session = Depends(get_session)):
