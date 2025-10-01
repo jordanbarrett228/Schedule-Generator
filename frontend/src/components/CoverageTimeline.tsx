@@ -30,7 +30,7 @@ export function CoverageTimeline({ data, minStaffDefault }: Props) {
 
   return (
     <div className="timeline grid" style={{ gap: 16 }}>
-      <div className="legend" style={{ marginBottom: 2 }}>
+      <div className="legend" style={{ marginBottom: 18 }}>
         <span className="legend-swatch" style={{ background: '#fee2e2' }} /> 0
         <span className="legend-swatch" style={{ background: '#fde68a' }} /> &lt; {minStaffDefault}
         <span className="legend-swatch" style={{ background: '#bbf7d0' }} /> = {minStaffDefault}

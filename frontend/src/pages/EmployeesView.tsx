@@ -32,9 +32,9 @@ export default function EmployeesView() {
   }
 
   return (
-    <section className="section">
+    <section className="empViewSection">
       <h2>Employees</h2>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, maxWidth: 'fit-content' }}>
         <input className="input" placeholder="Employee name" value={newName} onChange={e => setNewName(e.target.value)} />
         <button className="button" onClick={add}>Add</button>
       </div>

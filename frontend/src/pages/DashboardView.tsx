@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 import { CoverageTimeline } from '../components/CoverageTimeline'
 import DaySchedule from '../components/DaySchedule'
-import { format12 } from '../lib/time'
+import { format12, hhmmToMin } from '../lib/time'
+
+const hoursBetween = (start: string, end: string) =>
+  Math.max(0, hhmmToMin(end) - hhmmToMin(start)) / 60;
 
 type Shift = {
   employee_id: number
@@ -20,16 +23,6 @@ type CoverageDay = {
   close: string | null
   segments: CoverageSegment[]
 }
-type ScheduleResult = {
-  status: string
-  week_start: string
-  slot_minutes: number
-  min_staff_default: number
-  shifts: Shift[]
-  employee_hours: EmployeeHours[]
-  coverage: CoverageDay[]
-  diagnostics?: Diagnostic[]   // ← add this
-}
 type Diagnostic = {
   severity: 'error' | 'warning' | 'info' | string
   code: string
@@ -39,7 +32,16 @@ type Diagnostic = {
   employee_id?: number
   employee_name?: string
 }
-
+type ScheduleResult = {
+  status: string
+  week_start: string
+  slot_minutes: number
+  min_staff_default: number
+  shifts: Shift[]
+  employee_hours: EmployeeHours[]
+  coverage: CoverageDay[]
+  diagnostics?: Diagnostic[]
+}
 
 const LS_KEY_RESULT = 'schedule:lastResult'
 const LS_KEY_WEEK = 'schedule:lastWeekStart'
@@ -57,9 +59,7 @@ export default function DashboardView() {
         const parsed: ScheduleResult = JSON.parse(cached)
         setResult(parsed)
       }
-      if (cachedWeek) {
-        setWeekStart(cachedWeek)
-      }
+      if (cachedWeek) setWeekStart(cachedWeek)
     } catch {
       // ignore parse/storage errors
     }
@@ -89,15 +89,18 @@ export default function DashboardView() {
     try {
       localStorage.removeItem(LS_KEY_RESULT)
       // localStorage.removeItem(LS_KEY_WEEK) // keep or remove as you prefer
-    } catch { // ignore 
-        }
+    } catch {
+      // ignore
+    }
   }
 
   return (
     <div className="section">
       <h2>Dashboard</h2>
+
+      {/* Controls */}
       <div className="row" style={{ gap: 12, marginBottom: 12 }}>
-        <label className="row" style={{ gap: 8 }}>
+        {/* <label className="row" style={{ gap: 8 }}>
           Week start (Mon)
           <input
             className="input"
@@ -105,107 +108,114 @@ export default function DashboardView() {
             value={weekStart}
             onChange={(e) => setWeekStart(e.target.value)}
           />
-        </label>
+        </label> */}
         <button className="button primary" onClick={generate}>Generate Week</button>
         <button className="button" onClick={clearSaved}>Clear</button>
       </div>
+
+      {/* Diagnostics */}
       {result?.diagnostics && result.diagnostics.length > 0 && (
-      <div className="panel" style={{ marginTop: 12 }}>
-        <h3 style={{ marginTop: 0 }}>
-          Diagnostics <span className="label">({result.diagnostics.length})</span>
-        </h3>
-        <ul style={{ margin: 0, paddingLeft: 18, maxHeight: 200, overflowY: 'auto' }}>
-          {result.diagnostics.map((d, i) => (
-            <li key={i}>
-              <span
-                style={{
-                  fontWeight: d.severity === 'error' ? 700 : 500,
-                  color: d.severity === 'error' ? '#b91c1c' : undefined,
-                }}
-              >
-                [{d.code}] {d.message}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    )}
+        <div className="panel" style={{ marginTop: 12 }}>
+          <h3 style={{ marginTop: 0 }}>
+            Diagnostics <span className="label">({result.diagnostics.length})</span>
+          </h3>
+          <ul style={{ margin: 0, paddingLeft: 18, maxHeight: 200, overflowY: 'auto' }}>
+            {result.diagnostics.map((d, i) => (
+              <li key={i}>
+                <span
+                  style={{
+                    fontWeight: d.severity === 'error' ? 700 : 500,
+                    color: d.severity === 'error' ? '#b91c1c' : undefined,
+                  }}
+                >
+                  [{d.code}] {d.message}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {result && (
         <>
-          <div className="dash-grid">
-            {/* Left: Hours/week */}
-            <div className="panel">
-              <h3 style={{ marginTop: 0 }}>Hours (week)</h3>
-              {result.employee_hours?.length ? (
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Employee</th>
-                      <th>Hours</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {result.employee_hours.map((eh) => (
-                      <tr key={eh.employee_id}>
-                        <td>{eh.employee_name}</td>
-                        <td>{eh.hours.toFixed(1)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <div className="label">No hours.</div>
-              )}
-            </div>
-
-            {/* Middle: Shifts list */}
-            <div className="panel">
-              <h3 style={{ marginTop: 0 }}>Shifts</h3>
-              <div className="row" style={{ gap: 16, marginBottom: 8 }}>
-                <div>
-                  <b>Status:</b> {result.status}
-                </div>
-                <div>
-                  <b>Week Start:</b> {result.week_start}
-                </div>
-              </div>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Employee</th>
-                    <th>Day</th>
-                    <th>Start</th>
-                    <th>End</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {result.shifts?.map((s: Shift, idx: number) => (
-                    <tr key={idx}>
-                      <td>{s.employee_name}</td>
-                      <td>{s.weekday_name}</td>
-                      <td>{format12(s.start)}</td>
-                      <td>{format12(s.end)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Right: Coverage timeline */}
-            <div className="panel">
-              <h3 style={{ marginTop: 0 }}>Coverage by Day</h3>
-              <CoverageTimeline
-                data={result.coverage ?? []}
-                minStaffDefault={result.min_staff_default}
-              />
-            </div>
-          </div>
-
-          {/* NEW: Daily schedule (grouped by day, sorted by start time) */}
+          {/* 1) Daily schedule at the TOP */}
           <div className="panel" style={{ marginTop: 16 }}>
             <h3 style={{ marginTop: 0 }}>Daily Schedule</h3>
             <DaySchedule shifts={result.shifts} />
+          </div>
+
+          {/* Coverage timeline */}
+          <div className="panel">
+            <h3 style={{ marginTop: 0 }}>Coverage by Day</h3>
+            <CoverageTimeline
+              data={result.coverage ?? []}
+              minStaffDefault={result.min_staff_default}
+            />
+          </div>
+          {/* Shifts by employee (columns) with days-off + weekly hours */}
+          <div className="panel" style={{ marginTop: 16 }}>
+            <h3 style={{ marginTop: 0 }}>Shifts</h3>
+            <div className="row" style={{ gap: 16, marginBottom: 8 }}>
+              <div><b>Status:</b> {result.status}</div>
+              <div><b>Week Start:</b> {result.week_start}</div>
+            </div>
+
+            <div className="shifts-grid">
+              {Object.values(
+                result.shifts.reduce((acc, s) => {
+                  if (!acc[s.employee_id]) {
+                    acc[s.employee_id] = {
+                      id: s.employee_id,
+                      name: s.employee_name,
+                      shifts: [] as Shift[],
+                      weekdays: new Set<number>(),
+                      totalHours: 0,
+                    };
+                  }
+                  acc[s.employee_id].shifts.push(s);
+                  acc[s.employee_id].weekdays.add(s.weekday);
+                  acc[s.employee_id].totalHours += hoursBetween(s.start, s.end);
+                  return acc;
+                }, {} as Record<number, { id:number; name:string; shifts:Shift[]; weekdays:Set<number>; totalHours:number }>)
+              )
+                // optional: sort employees by name
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map(emp => {
+                  const daysWorked = emp.weekdays.size;
+                  const daysOff = 7 - daysWorked;
+                  return (
+                    <div key={emp.id} className="shift-col">
+                      <h4>
+                        {emp.name}{' '}
+                        <span style={{ color: '#666', fontSize: '0.9em' }}>
+                          ({daysOff} days off, {emp.totalHours.toFixed(1)} h)
+                        </span>
+                      </h4>
+                      <ul>
+                        {emp.shifts
+                          .slice()
+                          .sort((a, b) =>
+                            a.weekday === b.weekday
+                              ? hhmmToMin(a.start) - hhmmToMin(b.start)
+                              : a.weekday - b.weekday
+                          )
+                          .map((s, idx) => {
+                            const dur = hoursBetween(s.start, s.end).toFixed(1);
+                            return (
+                              <li key={idx} className="shift-row">
+                                <span className="shift-row__day">{s.weekday_name}</span>
+                                <span className="shift-row__time">
+                                  {format12(s.start)}–{format12(s.end)}
+                                </span>
+                                <span className="shift-row__pill" title={`${dur} hours`}>{dur} h</span>
+                              </li>
+                            );
+                          })}
+                      </ul>
+                    </div>
+                  );
+                })}
+            </div>
           </div>
         </>
       )}
