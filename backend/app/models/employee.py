@@ -1,14 +1,27 @@
 from typing import Optional
+import datetime as dt
+from sqlalchemy import Column
+from sqlalchemy.types import Time as SATime
 from sqlmodel import Field, SQLModel
 
 class EmployeeBase(SQLModel):
     name: str
     active: bool = True  # treat as "include in generation" toggle for now
+
     # Hard constraints (per-employee caps)
     min_hours_week: float = 20
     max_hours_week: float = 40
     min_shift_hours: float = 4
     max_shift_hours: float = 8
+
+    # Opening capability
+    capable_opening: bool = True
+    open_not_before: Optional[dt.time] = Field(default=dt.time(7, 0), sa_column=Column(SATime, nullable=True))
+
+    # Clopen protection
+    no_clopen: bool = False
+    clopen_next_day_not_before: Optional[dt.time] = Field(default=dt.time(9, 0), sa_column=Column(SATime, nullable=True))
+
     # Soft preferences
     preferred_hours: Optional[float] = None
     prefer_opening: bool = True
@@ -16,6 +29,9 @@ class EmployeeBase(SQLModel):
     prefer_closing: bool = True
     max_consecutive_days: Optional[int] = None
     allow_split_shifts: bool = False
+
+    # Soft: target # of days off in a week
+    target_days_off: Optional[int] = None  # 0..7
 
 class Employee(EmployeeBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -39,3 +55,8 @@ class EmployeeUpdate(SQLModel):
     prefer_closing: Optional[bool] = None
     max_consecutive_days: Optional[int] = None
     allow_split_shifts: Optional[bool] = None
+    capable_opening: Optional[bool] = None
+    open_not_before: Optional[dt.time] = Field(default=None, sa_column=Column(SATime, nullable=True))
+    no_clopen: Optional[bool] = None
+    clopen_next_day_not_before: Optional[dt.time] = Field(default=None, sa_column=Column(SATime, nullable=True))
+    target_days_off: Optional[int] = None

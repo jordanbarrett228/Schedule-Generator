@@ -14,10 +14,24 @@ export type Employee = {
   prefer_closing: boolean
   max_consecutive_days: number | null
   allow_split_shifts: boolean
+
+  capable_opening: boolean
+  open_not_before: string | null
+  no_clopen: boolean
+  clopen_next_day_not_before: string | null
+  target_days_off: number | null
 }
 
 export type UnavailableBlock = { id: number; employee_id: number; weekday: number; start_time: string; end_time: string }
-export type TimeOff = { id: number; employee_id: number; start_date: string; end_date: string; reason?: string }
+export type TimeOff = {
+  id: number
+  employee_id: number
+  date: string
+  all_day: boolean
+  start_time?: string | null
+  end_time?: string | null
+  reason?: string
+}
 export type LockedShift = { id: number; employee_id: number; weekday: number; start_time: string; end_time: string; note?: string }
 
 const weekdays = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
@@ -67,14 +81,15 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
     setUnavail(p=>p.filter(x=>x.id!==id))
   }
 
-  const addTimeOff = async (start_date: string, end_date: string, reason: string) => {
-    const res = await fetch(`/api/employees/${empId}/timeoff`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ employee_id: empId, start_date, end_date, reason })
-    })
-    const rec = await res.json()
-    setTimeOff(p=>[...p, rec])
-  }
+  const addTimeOff = async (date: string, all_day: boolean, start_time?: string|null, end_time?: string|null, reason?: string) => {
+  const res = await fetch(`/api/employees/${empId}/timeoff`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ employee_id: empId, date, all_day, start_time, end_time, reason })
+  })
+  const rec = await res.json()
+  setTimeOff(p=>[...p, rec])
+}
+
   const delTimeOff = async (id: number) => {
     await fetch(`/api/timeoff/${id}`, { method:'DELETE' })
     setTimeOff(p=>p.filter(x=>x.id!==id))
@@ -138,6 +153,44 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
                   onChange={e=>setEmp({...emp, max_shift_hours: +e.target.value})} />
               </div>
               <label className="row" style={{gap:8}}>
+              <input
+                  type="checkbox"
+                  checked={emp.capable_opening}
+                  onChange={e=>setEmp({...emp, capable_opening: e.target.checked})}
+              />
+              Capable of opening
+              </label>
+
+              <div className="row" style={{gap:8}}>
+              <div className="label">If NOT opening, earliest start</div>
+              <input
+                  className="input"
+                  type="time"
+                  value={emp.open_not_before ?? '07:00'}
+                  onChange={e=>setEmp({...emp, open_not_before: e.target.value })}
+              />
+              </div>
+
+              <label className="row" style={{gap:8}}>
+              <input
+                  type="checkbox"
+                  checked={emp.no_clopen}
+                  onChange={e=>setEmp({...emp, no_clopen: e.target.checked})}
+              />
+              No clopen (no opening next day after closing)
+              </label>
+
+              <div className="row" style={{gap:8}}>
+              <div className="label">If closed yesterday, earliest next-day start</div>
+              <input
+                  className="input"
+                  type="time"
+                  value={emp.clopen_next_day_not_before ?? '09:00'}
+                  onChange={e=>setEmp({...emp, clopen_next_day_not_before: e.target.value })}
+              />
+              </div>
+
+              <label className="row" style={{gap:8}}>
                 <input type="checkbox" checked={emp.allow_split_shifts}
                   onChange={e=>setEmp({...emp, allow_split_shifts: e.target.checked})} />
                     Allow split shifts (max 2/day)
@@ -172,6 +225,17 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
                 <div className="label">Target hours/week</div>
                 <input className="input" type="number" step="0.5" value={emp.preferred_hours ?? ''}
                   onChange={e=>setEmp({...emp, preferred_hours: e.target.value? +e.target.value : null})} />
+              </div>
+              <div>
+              <div className="label">Target days off/week (0–7)</div>
+              <input
+                  className="input"
+                  type="number"
+                  min={0}
+                  max={7}
+                  value={emp.target_days_off ?? ''}
+                  onChange={e=>setEmp({...emp, target_days_off: e.target.value ? +e.target.value : null})}
+              />
               </div>
               <div className="row" style={{gap:16}}>
                 <label className="row" style={{gap:6}}><input type="checkbox" checked={emp.prefer_opening} onChange={e=>setEmp({...emp, prefer_opening:e.target.checked})}/> Opening</label>
@@ -217,25 +281,46 @@ function UnavailableEditor({ rows, onAdd, onDelete }:{ rows:UnavailableBlock[], 
   )
 }
 
-function TimeOffEditor({ rows, onAdd, onDelete }:{ rows:TimeOff[], onAdd:(start:string,end:string,reason:string)=>void, onDelete:(id:number)=>void }){
-  const [start, setStart] = useState('')
-  const [end, setEnd] = useState('')
+function TimeOffEditor({
+  rows, onAdd, onDelete
+}:{
+  rows:TimeOff[],
+  onAdd:(date:string, all_day:boolean, start?:string|null, end?:string|null, reason?:string)=>void,
+  onDelete:(id:number)=>void
+}){
+  const [date, setDate] = useState('')
+  const [allDay, setAllDay] = useState(true)
+  const [start, setStart] = useState('09:00')
+  const [end, setEnd] = useState('17:00')
   const [reason, setReason] = useState('')
+
   return (
     <div className="grid" style={{gap:8}}>
       <div className="row" style={{gap:8, flexWrap:'wrap'}}>
-        <input className="input" type="date" value={start} onChange={e=>setStart(e.target.value)} />
-        <input className="input" type="date" value={end} onChange={e=>setEnd(e.target.value)} />
+        <input className="input" type="date" value={date} onChange={e=>setDate(e.target.value)} />
+        <label className="row" style={{gap:6}}>
+          <input type="checkbox" checked={allDay} onChange={e=>setAllDay(e.target.checked)} />
+          All day
+        </label>
+        {!allDay && (
+          <>
+            <input className="input" type="time" value={start} onChange={e=>setStart(e.target.value)} />
+            <input className="input" type="time" value={end} onChange={e=>setEnd(e.target.value)} />
+          </>
+        )}
         <input className="input" placeholder="Reason (optional)" value={reason} onChange={e=>setReason(e.target.value)} />
-        <button className="button" onClick={()=>{ if(start&&end) onAdd(start,end,reason); }}>Add</button>
+        <button className="button" onClick={()=>{
+          if(!date) return
+          onAdd(date, allDay, allDay ? null : start, allDay ? null : end, reason)
+        }}>Add</button>
       </div>
       <table className="table">
-        <thead><tr><th>Start</th><th>End</th><th>Reason</th><th></th></tr></thead>
+        <thead><tr><th>Date</th><th>Time</th><th>Reason</th><th></th></tr></thead>
         <tbody>
           {rows.map(r=> (
             <tr key={r.id}>
-              <td>{r.start_date}</td>
-              <td>{r.end_date}</td>
+              <td>{r.date}</td>
+              <td>{r.all_day ? 'All day' : `${r.start_time}–${r.end_time}`}</td>
               <td>{r.reason ?? ''}</td>
               <td><button className="button" onClick={()=>onDelete(r.id)}>Delete</button></td>
             </tr>
@@ -245,6 +330,7 @@ function TimeOffEditor({ rows, onAdd, onDelete }:{ rows:TimeOff[], onAdd:(start:
     </div>
   )
 }
+
 
 function LockedEditor({ rows, onAdd, onDelete }:{ rows:LockedShift[], onAdd:(weekday:number,start:string,end:string,note:string)=>void, onDelete:(id:number)=>void }){
   const [weekday, setWeekday] = useState(0)

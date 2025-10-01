@@ -4,12 +4,14 @@ from typing import Optional
 import datetime as dt
 from sqlmodel import SQLModel, Field
 from sqlalchemy import Column
-from sqlalchemy.types import Date as SADate
+from sqlalchemy.types import Date as SADate, Time as SATime
 
 class TimeOffBase(SQLModel):
     employee_id: int = Field(foreign_key="employee.id")
-    start_date: dt.date = Field(sa_column=Column(SADate))
-    end_date: dt.date = Field(sa_column=Column(SADate))
+    date: dt.date = Field(sa_column=Column(SADate))
+    all_day: bool = True
+    start_time: Optional[dt.time] = Field(default=None, sa_column=Column(SATime, nullable=True))
+    end_time: Optional[dt.time] = Field(default=None, sa_column=Column(SATime, nullable=True))
     reason: Optional[str] = None
 
 class TimeOff(TimeOffBase, table=True):

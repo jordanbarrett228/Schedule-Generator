@@ -15,8 +15,17 @@ from .models.lockedshift import LockedShift, LockedShiftCreate, LockedShiftRead
 from .models.settings import GlobalSettings, CoveragePeak, CoveragePeakCreate, CoveragePeakRead, BusinessHours, BusinessHoursRead, BusinessHoursCreate
 from .solver import generate_week_schedule
 from datetime import date
+from .routers import staffing_windows
+
+try:
+    import debugpy
+    debugpy.listen(("127.0.0.1", 5678))
+    debugpy.wait_for_client()  # uncomment to pause on start
+except Exception:
+    pass
 
 app = FastAPI(title="Schedule Generator API", version="0.1.0")
+app.include_router(staffing_windows.router, prefix="/api/staffing-windows", tags=["staffing-windows"])
 
 # DEV CORS (only needed while vite dev server is used)
 if os.environ.get("DEV", "0") == "1":

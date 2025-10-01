@@ -28,7 +28,18 @@ type ScheduleResult = {
   shifts: Shift[]
   employee_hours: EmployeeHours[]
   coverage: CoverageDay[]
+  diagnostics?: Diagnostic[]   // ← add this
 }
+type Diagnostic = {
+  severity: 'error' | 'warning' | 'info' | string
+  code: string
+  message: string
+  day?: number
+  time?: string
+  employee_id?: number
+  employee_name?: string
+}
+
 
 const LS_KEY_RESULT = 'schedule:lastResult'
 const LS_KEY_WEEK = 'schedule:lastWeekStart'
@@ -98,6 +109,27 @@ export default function DashboardView() {
         <button className="button primary" onClick={generate}>Generate Week</button>
         <button className="button" onClick={clearSaved}>Clear</button>
       </div>
+      {result?.diagnostics && result.diagnostics.length > 0 && (
+      <div className="panel" style={{ marginTop: 12 }}>
+        <h3 style={{ marginTop: 0 }}>
+          Diagnostics <span className="label">({result.diagnostics.length})</span>
+        </h3>
+        <ul style={{ margin: 0, paddingLeft: 18, maxHeight: 200, overflowY: 'auto' }}>
+          {result.diagnostics.map((d, i) => (
+            <li key={i}>
+              <span
+                style={{
+                  fontWeight: d.severity === 'error' ? 700 : 500,
+                  color: d.severity === 'error' ? '#b91c1c' : undefined,
+                }}
+              >
+                [{d.code}] {d.message}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
 
       {result && (
         <>
@@ -164,7 +196,7 @@ export default function DashboardView() {
             <div className="panel">
               <h3 style={{ marginTop: 0 }}>Coverage by Day</h3>
               <CoverageTimeline
-                data={result.coverage}
+                data={result.coverage ?? []}
                 minStaffDefault={result.min_staff_default}
               />
             </div>

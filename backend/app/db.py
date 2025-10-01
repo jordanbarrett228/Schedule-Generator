@@ -25,7 +25,8 @@ def init_db() -> None:
     from .models.timeoff import TimeOff  # noqa: F401
     from .models.lockedshift import LockedShift  # noqa: F401
     from .models.settings import GlobalSettings, CoveragePeak, BusinessHours  # noqa: F401
-
+    from .models.staffing_window import StaffingWindow  # noqa: F401
+    
     SQLModel.metadata.create_all(engine)
 
     with Session(engine) as session:

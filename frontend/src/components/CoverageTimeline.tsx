@@ -1,16 +1,17 @@
 import { hhmmToMin, format12 } from '../lib/time'
 import type { JSX } from 'react/jsx-runtime';
+
 type CoverageSegment = { start: string; end: string; count: number }
 type CoverageDay = {
   weekday: number
   weekday_name: string
   open: string | null
   close: string | null
-  segments: CoverageSegment[]
+  segments: CoverageSegment[] | undefined
 }
 
 type Props = {
-  data: CoverageDay[]
+  data: CoverageDay[] | undefined | null
   minStaffDefault: number
 }
 
@@ -22,6 +23,11 @@ export function CoverageTimeline({ data, minStaffDefault }: Props) {
     return '#bfdbfe'                             // exceeds target
   }
 
+  const days = Array.isArray(data) ? data : []
+  if (days.length === 0) {
+    return <div className="label">No coverage to display.</div>
+  }
+
   return (
     <div className="timeline grid" style={{ gap: 16 }}>
       <div className="legend" style={{ marginBottom: 2 }}>
@@ -31,11 +37,11 @@ export function CoverageTimeline({ data, minStaffDefault }: Props) {
         <span className="legend-swatch" style={{ background: '#bfdbfe' }} /> &gt; {minStaffDefault}
       </div>
 
-      {data.map((day) => {
+      {days.map((day) => {
         if (!day.open || !day.close) {
           return (
             <div key={day.weekday} className="timeline-row">
-              <div className="label"> {day.weekday_name} </div>
+              <div className="label">{day.weekday_name}</div>
               <div className="timeline-bar" style={{ justifyContent: 'center' }}>
                 <span className="label">Closed</span>
               </div>
@@ -47,16 +53,22 @@ export function CoverageTimeline({ data, minStaffDefault }: Props) {
         const closeM = hhmmToMin(day.close)
         const spanM = Math.max(1, closeM - openM)
 
+        // Fallback: if segments are missing/empty, show a single 0-coverage segment
+        const segments: CoverageSegment[] =
+          day.segments && day.segments.length
+            ? day.segments
+            : [{ start: day.open, end: day.close, count: 0 }]
+
         return (
           <div key={day.weekday} className="timeline-row">
             <div className="label" style={{ width: 130 }}>{day.weekday_name}</div>
             <div className="timeline-bar">
               {/* Colored segments with counts */}
-              {day.segments.map((seg, idx) => {
+              {segments.map((seg, idx) => {
                 const s = hhmmToMin(seg.start)
                 const e = hhmmToMin(seg.end)
                 const wPct = ((e - s) / spanM) * 100
-                const border = idx === day.segments.length - 1 ? 'none' : '1px solid var(--border)'
+                const border = idx === segments.length - 1 ? 'none' : '1px solid var(--border)'
                 return (
                   <div
                     key={idx}
@@ -96,8 +108,8 @@ export function CoverageTimeline({ data, minStaffDefault }: Props) {
                 let lastLeftPct = -999
                 const minGapPct = 8  // require 8% of bar width between labels
 
-                for (let i = 1; i < day.segments.length; i++) {
-                  const cpMin = hhmmToMin(day.segments[i].start)
+                for (let i = 1; i < segments.length; i++) {
+                  const cpMin = hhmmToMin(segments[i].start)
                   const leftPct = ((cpMin - openM) / spanM) * 100
 
                   // Cull if too close to previous label
@@ -109,7 +121,7 @@ export function CoverageTimeline({ data, minStaffDefault }: Props) {
                   nodes.push(<div key={`cl-${i}`} className="change-line" style={{ left: `${leftPct}%` }} />)
                   nodes.push(
                     <div key={`lbl-${i}`} className="change-label" style={{ left: `${leftPct}%` }}>
-                      {format12(day.segments[i].start)}
+                      {format12(segments[i].start)}
                     </div>
                   )
                   lastLeftPct = leftPct
