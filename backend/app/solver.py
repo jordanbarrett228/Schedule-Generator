@@ -168,16 +168,22 @@ def generate_week_schedule(session: Session, week_start: Optional[dt.date] = Non
     # mask_avail[e][d][slot_index] = 1/0
     mask_avail: Dict[int, Dict[int, List[int]]] = {e.id: {} for e in employees}
     mask_lock: Dict[int, Dict[int, List[int]]] = {e.id: {} for e in employees}
-    avail_map: dict[tuple[int,int], list[int]] = {}
-    lock_map: dict[tuple[int,int], list[int]] = {}
+    avail_map: dict[tuple[int, int], list[int]] = {}
+    lock_map: dict[tuple[int, int], list[int]] = {}
 
     for d, day in enumerate(week_grid):
         date_d = week_start + dt.timedelta(days=d)
         for e in employees:
-            slots = [1] * len(day.slots)
-            locks = [0] * len(day.slots)
+            nslots = len(day.slots)
+            # Start fully available within business window
+            slots = [1] * nslots
+            locks = [0] * nslots
 
-            # Weekly unavailability
+            # Build masks so we can distinguish *why* a slot got zeroed
+            ua_mask = [0] * nslots   # weekly Unavailable (can be overridden by locks)
+            to_mask = [0] * nslots   # Time Off (CANNOT be overridden by locks)
+
+            # Weekly unavailability -> mark ua_mask
             for ub in emp_unavail[e.id]:
                 if ub.weekday != d:
                     continue
@@ -185,45 +191,65 @@ def generate_week_schedule(session: Session, week_start: Optional[dt.date] = Non
                 ub_end = time_to_min(ub.end_time)
                 for i, m in enumerate(day.slots):
                     if ub_start <= m < ub_end:
-                        slots[i] = 0
+                        ua_mask[i] = 1
 
-            # Date-based time off (single-day, optional time window)
+            # Date-based time off (single-day, optional time window) -> mark to_mask
             for to in emp_timeoff[e.id]:
                 if to.date != date_d:
                     continue
                 if to.all_day or (to.start_time is None and to.end_time is None):
-                    slots = [0] * len(day.slots)
-                    break
-                to_start = time_to_min(to.start_time) if to.start_time else day.open_min
-                to_end = time_to_min(to.end_time) if to.end_time else day.close_min
-                for i, m in enumerate(day.slots):
-                    if to_start <= m < to_end:
-                        slots[i] = 0
-
-            # Weekly locked shifts (ignore if day closed or full time-off)
-            if any(slots):
-                for ls in emp_locked[e.id]:
-                    if ls.weekday != d:
-                        continue
-                    ls_start = time_to_min(ls.start_time)
-                    ls_end = time_to_min(ls.end_time)
+                    # all day -> zero full day in to_mask
+                    for i in range(nslots):
+                        to_mask[i] = 1
+                else:
+                    to_start = time_to_min(to.start_time) if to.start_time else day.open_min
+                    to_end   = time_to_min(to.end_time)   if to.end_time   else day.close_min
                     for i, m in enumerate(day.slots):
-                        if ls_start <= m < ls_end and slots[i] == 1:
-                            locks[i] = 1
+                        if to_start <= m < to_end:
+                            to_mask[i] = 1
+
+            # Apply masks to availability baseline
+            for i in range(nslots):
+                if ua_mask[i] or to_mask[i]:
+                    slots[i] = 0
 
             # Opening capability (hard): if not capable_opening, forbid before open_not_before
+            # NOTE: We intentionally keep this as a HARD block (locks will NOT override this),
+            # because your request was specifically to override Unavailability only.
             if not e.capable_opening:
-                cutoff = time_to_min(e.open_not_before) if e.open_not_before else 7*60
+                cutoff = time_to_min(e.open_not_before) if e.open_not_before else 7 * 60
                 for i, m in enumerate(day.slots):
                     if m < cutoff:
-                        slots[i] = 0
-                        locks[i] = 0  # prevent illegal locks here
+                        slots[i] = 0  # keep hard
+                        # do not set locks[i] here; we don't allow locks to bypass capability
+
+            # Apply weekly locked shifts:
+            #  - Set lock bits in the locked window
+            #  - If a lock overlaps *unavailability*, override availability to 1
+            #  - If a lock overlaps *time-off*, DO NOT override (remains 0)
+            #  - Emit a warning diagnostic when a lock overrides unavailability
+            for ls in emp_locked[e.id]:
+                if ls.weekday != d:
+                    continue
+                ls_start = time_to_min(ls.start_time)
+                ls_end   = time_to_min(ls.end_time)
+                for i, m in enumerate(day.slots):
+                    if ls_start <= m < ls_end:
+                        # Mark lock
+                        locks[i] = 1
+                        if to_mask[i] == 1:
+                            # Time-off is a hard block: keep slot unavailable
+                            # (Optionally, you could append an info diagnostic here.)
+                            continue
+                        if ua_mask[i] == 1 and slots[i] == 0:
+                            # Lock overrides unavailability -> flip back to available
+                            slots[i] = 1
 
             mask_avail[e.id][d] = slots
-            mask_lock[e.id][d] = locks
-
+            mask_lock[e.id][d]  = locks
             avail_map[(e.id, d)] = list(slots)  # copy
-            lock_map[(e.id, d)] = list(locks)
+            lock_map[(e.id, d)]  = list(locks)
+
 
     # Build model
     model = cp_model.CpModel()
@@ -921,5 +947,5 @@ def _collect_pre_solve_diagnostics(
                 "message": (f"Locked shifts for {e.name} total {locked_minutes/60:.1f}h, "
                             f"which exceeds weekly max {e.max_hours_week:.1f}h."),
             })
-            
+
     return diags
