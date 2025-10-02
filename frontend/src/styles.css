@@ -118,17 +118,28 @@ body {
   gap: 6px;
 }
 .shift-item {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto; /* time grows, name hugs the right */
+  column-gap: 10px;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
   padding: 6px 8px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #f9fafb;
 }
-.shift-time { font-weight: 600; }
-.shift-employee { color: var(--muted); }
+.shift-time {
+  justify-self: start;
+  white-space: nowrap;          /* keep the time on one line */
+  font-weight: 600;
+}
+.shift-employee {
+  justify-self: end;
+  text-align: right;            /* right-justify text */
+  overflow-wrap: anywhere;      /* allow breaking very long names */
+  /* if you prefer truncation instead of wrapping, use:
+     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60ch; */
+     color: var(--muted); 
+}
 
 .time12 { display:inline-flex; align-items:center; gap:4px; }
 .time12 select { padding:4px 6px; border:1px solid var(--border); border-radius:6px; }
@@ -216,7 +227,7 @@ body {
 .shift-row__day {
   text-align: right;           /* keeps times aligned */
   color: var(--muted);
-  font-weight: 600;
+  font-weight: 750;
   padding-right: 4px;
   white-space: nowrap;
 }

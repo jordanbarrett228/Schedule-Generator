@@ -63,8 +63,15 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
 
   const saveEmp = async () => {
     if (!emp) return
+    const payload = { ...emp, name: (emp.name ?? '').trim() }
+    if (!payload.name) {
+      alert('Name is required.')
+      return
+    }
     await fetch(`/api/employees/${emp.id}`, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(emp)
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     })
     onClose()
   }
@@ -159,6 +166,17 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
       <div className="modal">
         <header>
           <h3>Edit: {emp.name}</h3>
+          <div style={{ minWidth: 260 }}>
+          <div className="label">Name</div>
+          <input
+            className="input"
+            placeholder="First Last"
+            value={emp.name}
+            onChange={e => setEmp({ ...emp, name: e.target.value })}
+            maxLength={120}
+          />
+          </div>
+
           <div className="row">
             <button className="button" onClick={onClose}>Close</button>
             <button className="button primary" onClick={saveEmp}>Save</button>

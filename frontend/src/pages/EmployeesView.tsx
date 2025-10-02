@@ -21,7 +21,12 @@ export default function EmployeesView() {
     refresh()
   }
 
-  const remove = async (id: number) => {
+  const remove = async (id: number, name: string) => {
+    const ok = window.confirm(
+    `Are you sure you'd like to delete employee "${name}"?\n\nThis will permanently remove their constraints, time off, and locked shifts.`
+    )
+    if(!ok) return
+
     await fetch(`/api/employees/${id}`, { method: 'DELETE' })
     refresh()
   }
@@ -51,7 +56,7 @@ export default function EmployeesView() {
               </td>
               <td style={{textAlign:'right'}}>
                 <button className="button" onClick={()=>setEditing(e.id)}>Edit</button>
-                <button className="button" style={{ marginLeft: 8 }} onClick={() => remove(e.id)}>Delete</button>
+                <button className="button" style={{ marginLeft: 8 }} onClick={() => remove(e.id, e.name)}>Delete</button>
               </td>
             </tr>
           ))}
