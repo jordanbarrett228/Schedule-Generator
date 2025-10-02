@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.encoders import jsonable_encoder
 from fastapi.staticfiles import StaticFiles
+
 from starlette.responses import FileResponse
 from sqlmodel import Session, select
 from sqlalchemy import text
@@ -32,6 +33,7 @@ except Exception:
     pass
 
 app = FastAPI(title="Schedule Generator API", version="0.1.0")
+
 app.include_router(staffing_windows.router, prefix="/api/staffing-windows", tags=["staffing-windows"])
 app.include_router(unavailable_rt.router)
 
@@ -303,18 +305,27 @@ def restore_all(payload: dict, session: Session = Depends(get_session)):
         bulk_insert(StaffingWindow, payload["staffing_windows"])
 
     return {"ok": True}
-# ---- Serve React build in production ----
-FRONTEND_DIST = (
-    Path(__file__).resolve().parents[2] / "frontend" / "dist"
-)  # repo-root/frontend/dist
 
+# # ---- Serve React build in production ----
+# FRONTEND_DIST = (
+#     Path(__file__).resolve().parents[2] / "frontend" / "dist"
+# )  # repo-root/frontend/dist
+
+# if FRONTEND_DIST.exists():
+#     # Serve index.html for unknown routes (SPA fallback)
+#     app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
+
+#     @app.get("/{full_path:path}")
+#     def spa_fallback(full_path: str):
+#         index_file = FRONTEND_DIST / "index.html"
+#         if index_file.exists():
+#             return FileResponse(index_file)
+#         return {"detail": "Frontend not built yet."}
+
+# Serve frontend build (static) AFTER all API routes so APIs aren't shadowed by SPA
+FRONTEND_DIST = Path(__file__).resolve().parent / "static" / "dist"
 if FRONTEND_DIST.exists():
-    # Serve index.html for unknown routes (SPA fallback)
+    # Mount static assets at root so index.html can reference /assets/* paths
+    # StaticFiles(html=True) will return index.html for unknown routes automatically,
+    # avoid a manual catch-all route that can shadow asset requests.
     app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
-
-    @app.get("/{full_path:path}")
-    def spa_fallback(full_path: str):
-        index_file = FRONTEND_DIST / "index.html"
-        if index_file.exists():
-            return FileResponse(index_file)
-        return {"detail": "Frontend not built yet."}
