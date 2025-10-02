@@ -1,8 +1,11 @@
 from fastapi import FastAPI, Depends, HTTPException, Body
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.encoders import jsonable_encoder
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import FileResponse
 from sqlmodel import Session, select
+from sqlalchemy import text
 from pathlib import Path
 
 import os
@@ -18,6 +21,8 @@ from datetime import date
 from .routers import staffing_windows
 from .routers import unavailable_rt
 from app.models.lockedshift import LockedShift, LockedShiftUpdate
+from app.models.staffing_window import StaffingWindow
+from typing import Iterable
 
 try:
     import debugpy
@@ -252,6 +257,52 @@ def api_generate_schedule(payload: dict | None = None, session: Session = Depend
     result = generate_week_schedule(session, week_start=week_start)
     return result
 
+@app.get("/api/admin/backup")
+def backup_all(session: Session = Depends(get_session)):
+    data = {
+        "employees": session.exec(select(Employee)).all(),
+        "unavailable": session.exec(select(UnavailableBlock)).all(),
+        "timeoff": session.exec(select(TimeOff)).all(),
+        "locked_shifts": session.exec(select(LockedShift)).all(),
+        "settings": session.exec(select(GlobalSettings)).all() if 'GlobalSettings' in globals() else [],
+        "staffing_windows": session.exec(select(StaffingWindow)).all() if 'StaffingWindow' in globals() else [],
+        "version": "1",  # bump if you change shape
+    }
+    # Pydantic/SQLModel will JSON-ify; if time objects show HH:MM:SS that’s fine
+    return JSONResponse(content=jsonable_encoder(data))
+
+@app.post("/api/admin/restore")
+def restore_all(payload: dict, session: Session = Depends(get_session)):
+    # Simple, destructive restore: wipe and reinsert (for dev use)
+    # You may prefer upserts by (employee.name) or IDs. Below is clear and safe for dev.
+    for model in (LockedShift, TimeOff, UnavailableBlock, Employee, StaffingWindow, GlobalSettings):
+        try:
+            session.exec(text(f"DELETE FROM {model.__tablename__}"))
+        except Exception:
+            pass
+    session.commit()
+
+    def bulk_insert(model, items: Iterable[dict]):
+        for raw in items:
+            # strip unknown keys if any
+            obj = model.model_validate(raw)
+            session.add(obj)
+        session.commit()
+
+    if payload.get("employees"):
+        bulk_insert(Employee, payload["employees"])
+    if payload.get("unavailable"):
+        bulk_insert(UnavailableBlock, payload["unavailable"])
+    if payload.get("timeoff"):
+        bulk_insert(TimeOff, payload["timeoff"])
+    if payload.get("locked_shifts"):
+        bulk_insert(LockedShift, payload["locked_shifts"])
+    if payload.get("settings"):
+        bulk_insert(GlobalSettings, payload["settings"])
+    if payload.get("staffing_windows"):
+        bulk_insert(StaffingWindow, payload["staffing_windows"])
+
+    return {"ok": True}
 # ---- Serve React build in production ----
 FRONTEND_DIST = (
     Path(__file__).resolve().parents[2] / "frontend" / "dist"

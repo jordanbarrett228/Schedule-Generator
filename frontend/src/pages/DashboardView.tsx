@@ -46,6 +46,12 @@ type ScheduleResult = {
 const LS_KEY_RESULT = 'schedule:lastResult'
 const LS_KEY_WEEK = 'schedule:lastWeekStart'
 
+function formatDate_mmddyyyy(iso: string) {
+  // iso = "YYYY-MM-DD"
+  const [year, month, day] = iso.split("-");
+  return `${month}/${day}/${year}`;
+}
+
 export default function DashboardView() {
   const [weekStart, setWeekStart] = useState<string>('')
   const [result, setResult] = useState<ScheduleResult | null>(null)
@@ -94,23 +100,78 @@ export default function DashboardView() {
     }
   }
 
+  const exportWhenToWork = async () => {
+    if (!result) return
+
+    // 1) Build a map of employee positions (id -> position)
+    type EmpRecord = { id: number; name: string; position?: string }
+    const empMap = new Map<number, string>()
+    try {
+      const emps: EmpRecord[] = await fetch('/api/employees').then(r => r.json())
+      for (const e of emps) {
+        empMap.set(e.id, e.position && e.position.trim() ? e.position.trim() : 'Guest Services Specialist')
+      }
+    } catch {
+      // fallback: if fetch fails, all default to GSS
+    }
+
+    // 2) Turn week_start + weekday into actual dates
+    //    result.week_start is ISO "YYYY-MM-DD" (Monday)
+    const base = new Date(result.week_start + 'T00:00:00')  // local
+    const y = base.getFullYear(), m = base.getMonth(), d = base.getDate()
+
+    // 3) CSV header
+    const rows: string[][] = [
+      ['Position', 'Date', 'Begin time', 'End time', 'Employee name']
+    ]
+
+    // 4) Fill rows
+    // WhenToWork expects: Date = dd/mm/yyyy; times as "hh:mm am/pm"
+    for (const s of result.shifts) {
+      const dayDate = new Date(y, m, d + s.weekday)
+      const dateStr = formatDate_mmddyyyy(dayDate.toISOString().slice(0,10))
+      const begin = format12(s.start)  // your helper returns "h:mm AM/PM"
+      const end   = format12(s.end)
+      const position = empMap.get(s.employee_id) ?? 'Guest Services Specialist'
+
+      rows.push([position, dateStr, begin, end, s.employee_name])
+    }
+
+    // 5) Serialize CSV
+    const escaped = rows.map(cols =>
+      cols.map(c => /[",\n]/.test(c) ? `"${c.replace(/"/g,'""')}"` : c).join(',')
+    ).join('\r\n')
+
+    const blob = new Blob([escaped], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `schedule_whentowork_${result.week_start}.csv`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  }
+
+
   return (
     <div className="section">
       <h2>Dashboard</h2>
 
       {/* Controls */}
       <div className="row" style={{ gap: 12, marginBottom: 12 }}>
-        {/* <label className="row" style={{ gap: 8 }}>
-          Week start (Mon)
+        <label className="row" style={{ gap: 8 }}>
+          Week start (Sun)
           <input
             className="input"
             type="date"
             value={weekStart}
             onChange={(e) => setWeekStart(e.target.value)}
           />
-        </label> */}
+        </label>
         <button className="button primary" onClick={generate}>Generate Week</button>
         <button className="button" onClick={clearSaved}>Clear</button>
+        <button className="button" onClick={exportWhenToWork} disabled={!result || result.shifts.length === 0}>Export WhenToWork CSV</button>
       </div>
 
       {/* Diagnostics */}
@@ -141,7 +202,7 @@ export default function DashboardView() {
           {/* 1) Daily schedule at the TOP */}
           <div className="panel" style={{ marginTop: 16 }}>
             <h3 style={{ marginTop: 0 }}>Daily Schedule</h3>
-            <DaySchedule shifts={result.shifts} />
+            <DaySchedule shifts={result.shifts} weekStart={result.week_start} />
           </div>
 
           {/* Coverage timeline */}
@@ -188,7 +249,7 @@ export default function DashboardView() {
                       <h4>
                         {emp.name}{' '}
                         <span style={{ color: '#666', fontSize: '0.9em' }}>
-                          ({daysOff} days off, {emp.totalHours.toFixed(1)} h)
+                          ({daysOff} days off, {emp.totalHours.toFixed(2).replace(/\.?0+$/, '')} h)
                         </span>
                       </h4>
                       <ul>
@@ -200,14 +261,15 @@ export default function DashboardView() {
                               : a.weekday - b.weekday
                           )
                           .map((s, idx) => {
-                            const dur = hoursBetween(s.start, s.end).toFixed(1);
+                            const dur = hoursBetween(s.start, s.end);
+                            const durFixed = dur.toFixed(2).replace(/\.?0+$/, '');
                             return (
                               <li key={idx} className="shift-row">
                                 <span className="shift-row__day">{s.weekday_name}</span>
                                 <span className="shift-row__time">
                                   {format12(s.start)}–{format12(s.end)}
                                 </span>
-                                <span className="shift-row__pill" title={`${dur} hours`}>{dur} h</span>
+                                <span className="shift-row__pill" title={`${durFixed} hours`}>{durFixed} h</span>
                               </li>
                             );
                           })}

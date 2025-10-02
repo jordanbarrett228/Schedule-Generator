@@ -21,6 +21,7 @@ export type Employee = {
   no_clopen: boolean
   clopen_next_day_not_before: string | null
   target_days_off: number | null
+  position: string
 }
 
 export type UnavailableBlock = { id: number; employee_id: number; weekday: number; start_time: string; end_time: string }
@@ -177,6 +178,15 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
           />
           </div>
 
+          <div>
+            <div className="label">Position</div>
+            <input
+              className="input"
+              placeholder="Guest Services Specialist"
+              value={emp.position ?? 'Guest Services Specialist'}
+              onChange={e => setEmp({ ...emp, position: e.target.value })}
+            />
+          </div>
           <div className="row">
             <button className="button" onClick={onClose}>Close</button>
             <button className="button primary" onClick={saveEmp}>Save</button>

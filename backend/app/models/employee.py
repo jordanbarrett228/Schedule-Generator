@@ -33,6 +33,8 @@ class EmployeeBase(SQLModel):
     # Soft: target # of days off in a week
     target_days_off: Optional[int] = None  # 0..7
 
+    position: str = Field(default="Guest Services Specialist")
+
 class Employee(EmployeeBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
 
@@ -60,3 +62,4 @@ class EmployeeUpdate(SQLModel):
     no_clopen: Optional[bool] = None
     clopen_next_day_not_before: Optional[dt.time] = Field(default=None, sa_column=Column(SATime, nullable=True))
     target_days_off: Optional[int] = None
+    position: Optional[str] = None

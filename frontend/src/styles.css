@@ -236,3 +236,12 @@ body {
   white-space: nowrap;         /* keep full time on one line */
   overflow: visible;           /* do not ellipsize times */
 }
+
+.button.danger-soft {
+  background: #fee2e2;        /* soft red */
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+.button.danger-soft:hover {
+  background: #fecaca;
+}
