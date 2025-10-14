@@ -21,6 +21,8 @@ from .solver import generate_week_schedule
 from datetime import date
 from .routers import staffing_windows
 from .routers import unavailable_rt
+from app.routers import auth_rt
+from app.auth import get_current_user
 from app.models.lockedshift import LockedShift, LockedShiftUpdate
 from app.models.staffing_window import StaffingWindow
 from typing import Iterable
@@ -36,6 +38,7 @@ app = FastAPI(title="Schedule Generator API", version="0.1.0")
 
 app.include_router(staffing_windows.router, prefix="/api/staffing-windows", tags=["staffing-windows"])
 app.include_router(unavailable_rt.router)
+app.include_router(auth_rt.router)
 
 # DEV CORS (only needed while vite dev server is used)
 if os.environ.get("DEV", "0") == "1":
