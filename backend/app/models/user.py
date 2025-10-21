@@ -4,19 +4,19 @@ from typing import Optional
 from datetime import datetime
 from sqlmodel import SQLModel, Field
 
-class UserBase(SQLModel):
-    username: str
-    is_active: bool = True
-    notes: Optional[str] = None
-
-class User(UserBase, table=True):
+class User(SQLModel, table=True): # type: ignore[call-arg, misc]
     id: Optional[int] = Field(default=None, primary_key=True)
-    password_hash: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    username: str = Field(index=True, unique=True)
+    hashed_password: str
+    is_active: bool = True
 
-class UserCreate(UserBase):
-    password: str
-
-class UserRead(UserBase):
+# For responses
+class UserRead(SQLModel):
     id: int
-    created_at: datetime
+    username: str
+    is_active: bool
+
+# For login body (not stored)
+class UserLogin(SQLModel):
+    username: str
+    password: str

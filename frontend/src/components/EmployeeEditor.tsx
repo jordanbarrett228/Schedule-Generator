@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { format12 } from '../lib/time';
+import { fetchWithAuth } from '../utils/fetchWithAuth';
 
 export type Employee = {
   id: number
@@ -48,10 +49,10 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
   async function load() {
     setLoading(true)
     const [e, u, t, l] = await Promise.all([
-      fetch(`/api/employees`).then(r=>r.json()).then((arr: Employee[])=>arr.find(x=>x.id===empId)),
-      fetch(`/api/employees/${empId}/unavailable`).then(r=>r.json()),
-      fetch(`/api/employees/${empId}/timeoff`).then(r=>r.json()),
-      fetch(`/api/employees/${empId}/locked_shifts`).then(r=>r.json()),
+      fetchWithAuth(`/api/employees`).then(r=>r.json()).then((arr: Employee[])=>arr.find(x=>x.id===empId)),
+      fetchWithAuth(`/api/employees/${empId}/unavailable`).then(r=>r.json()),
+      fetchWithAuth(`/api/employees/${empId}/timeoff`).then(r=>r.json()),
+      fetchWithAuth(`/api/employees/${empId}/locked_shifts`).then(r=>r.json()),
     ])
     if (e) setEmp(e)
     setUnavail(u)
@@ -69,7 +70,7 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
       alert('Name is required.')
       return
     }
-    await fetch(`/api/employees/${emp.id}`, {
+    await fetchWithAuth(`/api/employees/${emp.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -78,7 +79,7 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
   }
 
   const addUnavail = async (weekday: number, start: string, end: string) => {
-    const res = await fetch(`/api/employees/${empId}/unavailable`, {
+    const res = await fetchWithAuth(`/api/employees/${empId}/unavailable`, {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ employee_id: empId, weekday, start_time: start, end_time: end })
     })
@@ -86,11 +87,11 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
     setUnavail(p=>[...p, rec])
   }
   const delUnavail = async (id: number) => {
-    await fetch(`/api/unavailable/${id}`, { method:'DELETE' })
+    await fetchWithAuth(`/api/unavailable/${id}`, { method:'DELETE' })
     setUnavail(p=>p.filter(x=>x.id!==id))
   }
   const updateUnavail = async (id: number, weekday: number, start: string, end: string) => {
-    const res = await fetch(`/api/unavailable/${id}`, {
+    const res = await fetchWithAuth(`/api/unavailable/${id}`, {
       method:'PUT', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ weekday, start_time: start, end_time: end })
     })
@@ -115,12 +116,12 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
   function resFetch(input: RequestInfo | URL, init?: RequestInit) { return fetch(input, init) }
 
   const delTimeOff = async (id: number) => {
-    await fetch(`/api/timeoff/${id}`, { method:'DELETE' })
+    await fetchWithAuth(`/api/timeoff/${id}`, { method:'DELETE' })
     setTimeOff(p=>p.filter(x=>x.id!==id))
   }
   
   const addLocked = async (weekday: number, start_time: string, end_time: string, note: string) => {
-    const res = await fetch(`/api/employees/${empId}/locked_shifts`, {
+    const res = await fetchWithAuth(`/api/employees/${empId}/locked_shifts`, {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ employee_id: empId, weekday, start_time, end_time, note })
     })
@@ -129,7 +130,7 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
   }
 
   const delLocked = async (id: number) => {
-    await fetch(`/api/locked_shifts/${id}`, { method:'DELETE' })
+    await fetchWithAuth(`/api/locked_shifts/${id}`, { method:'DELETE' })
     setLocked(p=>p.filter(x=>x.id!==id))
   }
 
@@ -138,7 +139,7 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
       alert('End time must be after start time.')
       return
     }
-    const res = await fetch(`/api/employees/${empId}/locked_shifts/${id}`, {
+    const res = await fetchWithAuth(`/api/employees/${empId}/locked_shifts/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ weekday, start_time, end_time, note }),

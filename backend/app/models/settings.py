@@ -7,6 +7,7 @@ from sqlalchemy import Column
 from sqlalchemy.types import Time as SATime
 
 class GlobalSettings(SQLModel, table=True):
+    user_id: Optional[int] = Field(default=None, foreign_key="user.id")
     id: Optional[int] = Field(default=1, primary_key=True)
     min_staff_default: int = Field(default=2)
     coordinator_opening_mon: bool = False
@@ -19,10 +20,11 @@ class GlobalSettings(SQLModel, table=True):
     coordinator_open_window_minutes: int = Field(default=135)  # 2h15m
     
 class BusinessHoursBase(SQLModel):
+    user_id: Optional[int] = Field(default=None, foreign_key="user.id")
     weekday: int  # 0=Mon..6=Sun
     open_time: dt.time = Field(sa_column=Column(SATime))
     close_time: dt.time = Field(sa_column=Column(SATime))
-
+    
 class BusinessHours(BusinessHoursBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
 

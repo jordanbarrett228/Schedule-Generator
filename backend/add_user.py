@@ -16,7 +16,7 @@ def add_user(username: str, password: str, notes: str | None = None, is_active: 
         if existing:
             print(f"User '{username}' already exists.")
             return False
-        rec = User(username=username, password_hash=hash_password(password), notes=notes, is_active=is_active)
+        rec = User(username=username, hashed_password=hash_password(password), is_active=is_active)
         session.add(rec)
         session.commit()
         session.refresh(rec)

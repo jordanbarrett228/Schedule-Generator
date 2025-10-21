@@ -5,10 +5,10 @@ from sqlalchemy.types import Time as SATime
 from sqlmodel import Field, SQLModel
 
 class EmployeeBase(SQLModel):
+    user_id: Optional[int] = Field(default=None, foreign_key="user.id")
     name: str
     active: bool = True  # treat as "include in generation" toggle for now
-    owner_user_id: Optional[int] = Field(default=None, foreign_key="user.id")
-    
+
     # Hard constraints (per-employee caps)
     min_hours_week: float = 20
     max_hours_week: float = 40

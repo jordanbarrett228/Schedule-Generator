@@ -7,16 +7,18 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlmodel import Session, select, create_engine
-
+from typing import cast
 from .models.user import User, UserRead
 
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv()  # take environment variables from .env file
 
 # Configuration: set these env vars in your environment (or use .env in dev)
 JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "change-me-in-prod")  # change in production!
 JWT_ALGORITHM = os.environ.get("JWT_ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "120"))
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "240"))
 
 # Users DB path (separate DB)
 _USERS_DB_PATH = Path(__file__).resolve().parents[1] / ".." / "users.db"
@@ -43,19 +45,15 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def create_access_token(subject: str, expires_delta: Optional[timedelta] = None) -> str:
     now = datetime.utcnow()
-    if expires_delta:
-        exp = now + expires_delta
-    else:
-        exp = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode = {"sub": subject, "exp": exp.isoformat()}
-    encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
-    return encoded_jwt
+    exp = now + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    to_encode = {"sub": subject, "exp": int(exp.timestamp())}  # ✅ use timestamp
+    return jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 
 def decode_access_token(token: str) -> str:
     try:
         payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
-        subject: str = payload.get("sub")
-        if subject is None:
+        subject = cast(Optional[str], payload.get("sub"))
+        if not subject:
             raise JWTError("Missing sub")
         return subject
     except JWTError as e:
@@ -65,7 +63,6 @@ def decode_access_token(token: str) -> str:
             headers={"WWW-Authenticate": "Bearer"},
         ) from e
 
-# Dependency to get current user object from token
 def get_current_user(token: str = Depends(oauth2_scheme)) -> UserRead:
     username = decode_access_token(token)
     with Session(users_engine) as session:

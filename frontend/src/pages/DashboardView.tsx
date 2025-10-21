@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { CoverageTimeline } from '../components/CoverageTimeline'
 import DaySchedule from '../components/DaySchedule'
 import { format12, hhmmToMin } from '../lib/time'
+import { fetchWithAuth } from '../utils/fetchWithAuth';
 
 const hoursBetween = (start: string, end: string) =>
   Math.max(0, hhmmToMin(end) - hhmmToMin(start)) / 60;
@@ -73,7 +74,7 @@ export default function DashboardView() {
 
   const generate = async () => {
     const body = weekStart ? { week_start: weekStart } : {}
-    const res = await fetch('/api/schedule/generate', {
+    const res = await fetchWithAuth('/api/schedule/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -107,7 +108,7 @@ export default function DashboardView() {
     type EmpRecord = { id: number; name: string; position?: string }
     const empMap = new Map<number, string>()
     try {
-      const emps: EmpRecord[] = await fetch('/api/employees').then(r => r.json())
+      const emps: EmpRecord[] = await fetchWithAuth('/api/employees').then(r => r.json())
       for (const e of emps) {
         empMap.set(e.id, e.position && e.position.trim() ? e.position.trim() : 'Guest Services Specialist')
       }

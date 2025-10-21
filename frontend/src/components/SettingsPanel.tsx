@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { fetchWithAuth } from '../utils/fetchWithAuth'
 
 export type GlobalSettings = {
   id: number
@@ -14,9 +15,6 @@ export type BusinessHours = {
 
 const weekdays = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
 
-
-
-
 export function SettingsPanel() {
   const [gs, setGs] = useState<GlobalSettings | null>(null)
   const [bh, setBh] = useState<BusinessHours[]>([])
@@ -25,8 +23,8 @@ export function SettingsPanel() {
   async function load(){
     setLoading(true)
     const [g, rawBh] = await Promise.all([
-      fetch('/api/settings/global').then(r=>r.json()),
-      fetch('/api/settings/business_hours').then(r=>r.json()),
+      fetchWithAuth('/api/settings/global').then(r=>r.json()),
+      fetchWithAuth('/api/settings/business_hours').then(r=>r.json()),
     ])
     setGs(g)
 
@@ -38,20 +36,20 @@ export function SettingsPanel() {
 
   const saveGlobal = async () => {
     if (!gs) return
-    await fetch('/api/settings/global', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(gs) })
+    await fetchWithAuth('/api/settings/global', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(gs) })
   }
 
   const saveBusinessHours = async () => {
     // send array without ids is okay; backend upserts by weekday
     const payload = bh.map(({weekday, open_time, close_time}) => ({weekday, open_time, close_time}))
-    await fetch('/api/settings/business_hours', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+    await fetchWithAuth('/api/settings/business_hours', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
     await load()
   }
 
   const fileRef = useRef<HTMLInputElement>(null)
   const backupData = async () => {
     try {
-        const res = await fetch('/api/admin/backup')
+        const res = await fetchWithAuth('/api/admin/backup')
         if (!res.ok) {
         const t = await res.text()
         alert(`Backup failed: ${t || res.statusText}`)
@@ -87,7 +85,7 @@ const onRestoreFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     )
     if (!ok) return
 
-    const res = await fetch('/api/admin/restore', {
+    const res = await fetchWithAuth('/api/admin/restore', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { EmployeeEditor, type Employee } from '../components/EmployeeEditor'
+import { fetchWithAuth } from '../utils/fetchWithAuth'
 
 export default function EmployeesView() {
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -7,13 +8,13 @@ export default function EmployeesView() {
   const [editing, setEditing] = useState<number | null>(null)
 
   const refresh = () => {
-    fetch('/api/employees').then(r => r.json()).then(setEmployees)
+    fetchWithAuth('/api/employees').then(r => r.json()).then(setEmployees)
   }
   useEffect(() => { refresh() }, [])
 
   const add = async () => {
     if (!newName.trim()) return
-    await fetch('/api/employees', {
+    await fetchWithAuth('/api/employees', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: newName, active: true })
     })
@@ -27,12 +28,12 @@ export default function EmployeesView() {
     )
     if(!ok) return
 
-    await fetch(`/api/employees/${id}`, { method: 'DELETE' })
+    await fetchWithAuth(`/api/employees/${id}`, { method: 'DELETE' })
     refresh()
   }
 
   const toggleActive = async (e: Employee) => {
-    await fetch(`/api/employees/${e.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ active: !e.active }) })
+    await fetchWithAuth(`/api/employees/${e.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ active: !e.active }) })
     refresh()
   }
 

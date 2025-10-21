@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { fetchWithAuth } from '../utils/fetchWithAuth'
 
 type StaffingWindow = {
   id: number
@@ -48,9 +49,9 @@ export default function StaffingPrefsView() {
 
   useEffect(() => {
     ;(async () => {
-      const r1 = await fetch('/api/staffing-windows')
+      const r1 = await fetchWithAuth('/api/staffing-windows')
       setRows(await r1.json())
-      const r2 = await fetch('/api/settings/global')
+      const r2 = await fetchWithAuth('/api/settings/global')
       setGs(await r2.json())
     })()
   }, [])
@@ -64,7 +65,7 @@ export default function StaffingPrefsView() {
       max_staff: maxStaff ? Number(maxStaff) : null,
       prefer_full_length: prefFull,
     }
-    const r = await fetch('/api/staffing-windows', {
+    const r = await fetchWithAuth('/api/staffing-windows', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -74,7 +75,7 @@ export default function StaffingPrefsView() {
   }
 
   const delWindow = async (id: number) => {
-    await fetch(`/api/staffing-windows/${id}`, { method: 'DELETE' })
+    await fetchWithAuth(`/api/staffing-windows/${id}`, { method: 'DELETE' })
     setRows((prev) => prev.filter((x) => x.id !== id))
   }
 
@@ -82,7 +83,7 @@ export default function StaffingPrefsView() {
     if (!gs) return
     const next: GlobalSettings = { ...gs, ...patch }
     setGs(next)
-    await fetch('/api/settings/global', {
+    await fetchWithAuth('/api/settings/global', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(next),
@@ -100,7 +101,7 @@ export default function StaffingPrefsView() {
         max_staff: 2,
         prefer_full_length: false,
       }
-      const r = await fetch('/api/staffing-windows', {
+      const r = await fetchWithAuth('/api/staffing-windows', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

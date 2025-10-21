@@ -7,6 +7,7 @@ from sqlalchemy import Column
 from sqlalchemy.types import Time as SATime
 
 class UnavailableBlockBase(SQLModel):
+    user_id: int = Field(foreign_key="user.id")
     employee_id: int = Field(foreign_key="employee.id")
     weekday: int  # 0=Mon .. 6=Sun
     start_time: dt.time = Field(sa_column=Column(SATime))

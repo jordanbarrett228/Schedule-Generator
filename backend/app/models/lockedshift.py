@@ -10,12 +10,13 @@ from datetime import time as dt_time
 WEEKDAYS = set(range(0, 7))
 
 class LockedShiftBase(SQLModel):
+    user_id: int = Field(foreign_key="user.id")
     employee_id: int = Field(foreign_key="employee.id")
     weekday: int  # 0=Mon..6=Sun
     start_time: dt.time = Field(sa_column=Column(SATime))
     end_time: dt.time = Field(sa_column=Column(SATime))
     note: Optional[str] = None
-
+    
 class LockedShift(LockedShiftBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
 
