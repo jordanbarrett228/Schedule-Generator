@@ -2,7 +2,7 @@
 from sqlmodel import create_engine, SQLModel, Session
 from pathlib import Path
 
-_USERS_DB_PATH = Path(__file__).resolve().parents[1] / "users.db"
+_USERS_DB_PATH = Path(__file__).resolve().parents[1] / "backend" / "data" / "users.db"
 _USERS_DB_URL = f"sqlite:///{_USERS_DB_PATH}"
 
 users_engine = create_engine(_USERS_DB_URL, echo=False)

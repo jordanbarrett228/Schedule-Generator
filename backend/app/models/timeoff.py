@@ -5,9 +5,9 @@ import datetime as dt
 from sqlmodel import SQLModel, Field
 from sqlalchemy import Column
 from sqlalchemy.types import Date as SADate, Time as SATime
+from .dbbase import DBBase
 
-class TimeOffBase(SQLModel):
-    user_id: int = Field(foreign_key="user.id")
+class TimeOffBase(DBBase):
     employee_id: int = Field(foreign_key="employee.id")
     date: dt.date = Field(sa_column=Column(SADate))
     all_day: bool = True

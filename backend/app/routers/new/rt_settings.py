@@ -37,7 +37,8 @@ def update_global_settings(payload: GlobalSettings, session: Session = Depends(g
 
 @router.get("/business_hours", response_model=List[BusinessHoursRead])
 def get_business_hours(session: Session = Depends(get_session), current_user: UserRead = Depends(get_current_user)):
-    return session.exec(select(BusinessHours).where(BusinessHours.user_id == current_user.id).order_by(BusinessHours.weekday)).all() # type: ignore
+    hrs = session.exec(select(BusinessHours).where(BusinessHours.user_id == current_user.id).order_by(BusinessHours.weekday)).all() # type: ignore
+    return hrs
 
 @router.put("/business_hours", response_model=List[BusinessHoursRead])
 def put_business_hours(payload: List[BusinessHoursCreate] = Body(...), session: Session = Depends(get_session), current_user: UserRead = Depends(get_current_user)):

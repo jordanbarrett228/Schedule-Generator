@@ -21,7 +21,7 @@ JWT_ALGORITHM = os.environ.get("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "240"))
 
 # Users DB path (separate DB)
-_USERS_DB_PATH = Path(__file__).resolve().parents[1] / ".." / "users.db"
+_USERS_DB_PATH = Path(__file__).resolve().parents[1] / ".." / "backend" / "data" / "users.db"
 # Normalize path string for create_engine
 _USERS_DB_URL = f"sqlite:///{Path(_USERS_DB_PATH).resolve()}"
 
@@ -34,8 +34,8 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token")
 
 def create_users_db_and_tables():
-    from sqlmodel import SQLModel
-    SQLModel.metadata.create_all(users_engine)
+    from app.models.user import usermetadata
+    usermetadata.create_all(users_engine)
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)

@@ -24,14 +24,8 @@ engine = create_engine(
 )
 
 def init_db() -> None:
-    from .models.employee import Employee  # noqa: F401
-    from .models.unavailable import UnavailableBlock  # noqa: F401
-    from .models.timeoff import TimeOff  # noqa: F401
-    from .models.lockedshift import LockedShift  # noqa: F401
-    from .models.settings import GlobalSettings, BusinessHours  # noqa: F401
-    from .models.staffing_window import StaffingWindow  # noqa: F401
-
-    SQLModel.metadata.create_all(engine)
+    from .models.dbbase import schedulemetadata
+    schedulemetadata.create_all(engine)
 
 # FastAPI dependency
 def get_session():

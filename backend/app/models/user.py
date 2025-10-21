@@ -3,8 +3,13 @@ from __future__ import annotations
 from typing import Optional
 from datetime import datetime
 from sqlmodel import SQLModel, Field
+import sqlalchemy
 
-class User(SQLModel, table=True): # type: ignore[call-arg, misc]
+usermetadata = sqlalchemy.MetaData()
+class UserBase(SQLModel):
+    metadata = usermetadata
+
+class User(UserBase, table=True): # type: ignore[call-arg, misc]
     id: Optional[int] = Field(default=None, primary_key=True)
     username: str = Field(index=True, unique=True)
     hashed_password: str

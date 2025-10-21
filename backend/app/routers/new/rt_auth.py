@@ -26,7 +26,7 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
             raise HTTPException(status_code=401, detail="Incorrect username or password")
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(user.username, access_token_expires)
-        ensure_user_settings(session, user.id) # type: ignore
+        ensure_user_settings(user.id) # type: ignore
         return {"access_token": access_token, "token_type": "bearer"}
 
 from ...auth import get_current_user as _get_current_user

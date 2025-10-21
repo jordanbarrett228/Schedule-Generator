@@ -4,9 +4,9 @@ import datetime as dt
 from sqlmodel import SQLModel, Field
 from sqlalchemy import Column
 from sqlalchemy.types import Time as SATime
+from .dbbase import DBBase
 
-class StaffingWindowBase(SQLModel):
-    user_id: int = Field(foreign_key="user.id")
+class StaffingWindowBase(DBBase):
     weekday: int  # 0=Mon .. 6=Sun
     start_time: dt.time = Field(sa_column=Column(SATime))
     end_time: dt.time = Field(sa_column=Column(SATime))

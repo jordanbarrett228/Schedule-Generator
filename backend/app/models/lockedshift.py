@@ -6,11 +6,11 @@ from sqlmodel import SQLModel, Field
 from sqlalchemy import Column
 from sqlalchemy.types import Time as SATime
 from datetime import time as dt_time
+from .dbbase import DBBase
 
 WEEKDAYS = set(range(0, 7))
 
-class LockedShiftBase(SQLModel):
-    user_id: int = Field(foreign_key="user.id")
+class LockedShiftBase(DBBase):
     employee_id: int = Field(foreign_key="employee.id")
     weekday: int  # 0=Mon..6=Sun
     start_time: dt.time = Field(sa_column=Column(SATime))
