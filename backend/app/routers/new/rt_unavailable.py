@@ -11,7 +11,7 @@ from app.models.employee import Employee
 from app.models.user import UserRead
 from app.auth import get_current_user
 
-router = APIRouter(prefix="/api/unavailable", tags=["unavailable"])
+router = APIRouter(prefix="/api/employees", tags=["unavailable"])
 
 WEEKDAYS = set(range(0, 7))
 
@@ -42,7 +42,7 @@ class UnavailableUpdate(BaseModel):
 #                   ENDPOINTS
 # ======================================================
 
-@router.get("/employees/{emp_id}", response_model=List[UnavailableBlockRead])
+@router.get("/{emp_id}/unavailable", response_model=List[UnavailableBlockRead])
 def list_unavailable(
     emp_id: int,
     session: Session = Depends(get_session),
@@ -58,7 +58,7 @@ def list_unavailable(
     ).all()
 
 
-@router.post("/employees/{emp_id}", response_model=UnavailableBlockRead)
+@router.post("/{emp_id}/unavailable", response_model=UnavailableBlockRead)
 def create_unavailable(
     emp_id: int,
     payload: UnavailableBlockCreate,

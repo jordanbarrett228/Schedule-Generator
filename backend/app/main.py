@@ -48,3 +48,7 @@ FRONTEND_DIST = Path(__file__).resolve().parent / "static" / "dist"
 if FRONTEND_DIST.exists():
     from fastapi.staticfiles import StaticFiles
     app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
+
+#if __name__ == "__main__":
+ #   import uvicorn
+  #  uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
