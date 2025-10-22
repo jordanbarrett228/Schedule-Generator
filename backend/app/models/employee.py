@@ -15,10 +15,6 @@ class EmployeeBase(DBBase):
     min_shift_hours: float = 4
     max_shift_hours: float = 8
 
-    # Opening capability
-    capable_opening: bool = True
-    open_not_before: Optional[dt.time] = Field(default=dt.time(7, 0), sa_column=Column(SATime, nullable=True))
-
     # Clopen protection
     no_clopen: bool = False
     clopen_next_day_not_before: Optional[dt.time] = Field(default=dt.time(9, 0), sa_column=Column(SATime, nullable=True))
@@ -58,8 +54,6 @@ class EmployeeUpdate(DBBase):
     prefer_closing: Optional[bool] = None
     max_consecutive_days: Optional[int] = None
     allow_split_shifts: Optional[bool] = None
-    capable_opening: Optional[bool] = None
-    open_not_before: Optional[dt.time] = Field(default=None, sa_column=Column(SATime, nullable=True))
     no_clopen: Optional[bool] = None
     clopen_next_day_not_before: Optional[dt.time] = Field(default=None, sa_column=Column(SATime, nullable=True))
     target_days_off: Optional[int] = None

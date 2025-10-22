@@ -29,15 +29,34 @@ app.include_router(rt_staffing_windows.router)
 app.include_router(rt_admin.router)
 
 
-# DEV CORS (if needed)
+# CORS Configuration
+# Allow local development and Cloudflare Tunnel access
+allowed_origins = [
+    "http://localhost:5173",  # Vite dev server
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+# Add Cloudflare Tunnel URL if specified in environment
+cloudflare_url = os.environ.get("CLOUDFLARE_TUNNEL_URL", "")
+if cloudflare_url:
+    allowed_origins.append(cloudflare_url)
+
+# In development mode, allow all origins for easier testing
 if os.environ.get("DEV", "0") == "1":
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    allowed_origins.append("http://localhost:5173")
+    allowed_origins.append("http://127.0.0.1:5173")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_origin_regex=r"https://.*\.trycloudflare\.com",  # Allow Cloudflare quick tunnels
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+)
 
 @app.on_event("startup")
 def on_startup():

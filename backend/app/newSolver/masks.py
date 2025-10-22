@@ -81,14 +81,6 @@ def build_masks(
                 if ua_mask[i] or to_mask[i]:
                     slots[i] = 0
 
-            # --- Opening capability (optional early-block logic) ---
-            if hasattr(emp, "capable_opening") and not emp.capable_opening:
-                open_not_before: Optional[dt.time] = getattr(emp, "open_not_before", None)
-                cutoff = time_to_min(open_not_before) if open_not_before else 7 * 60  # default 7:00
-                for i, m in enumerate(day.slots):
-                    if m < cutoff:
-                        slots[i] = 0
-
             # --- Locked shifts (hard overrides for scheduling) ---
             for ls in emp_locked.get(eid, []):
                 if ls.weekday != d:

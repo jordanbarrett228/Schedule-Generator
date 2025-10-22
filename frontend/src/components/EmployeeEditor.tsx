@@ -17,8 +17,6 @@ export type Employee = {
   max_consecutive_days: number | null
   allow_split_shifts: boolean
 
-  capable_opening: boolean
-  open_not_before: string | null
   no_clopen: boolean
   clopen_next_day_not_before: string | null
   target_days_off: number | null
@@ -222,24 +220,6 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
                 <div className="label">Max hours/shift</div>
                 <input className="input" type="number" step="0.5" value={emp.max_shift_hours}
                   onChange={e=>setEmp({...emp, max_shift_hours: +e.target.value})} />
-              </div>
-              <label className="row" style={{gap:8}}>
-                <input
-                  type="checkbox"
-                  checked={emp.capable_opening}
-                  onChange={e=>setEmp({...emp, capable_opening: e.target.checked})}
-                />
-                Capable of opening
-              </label>
-
-              <div className="row" style={{gap:8}}>
-                <div className="label">If NOT opening, earliest start</div>
-                <input
-                  className="input"
-                  type="time"
-                  value={emp.open_not_before ?? '07:00'}
-                  onChange={e=>setEmp({...emp, open_not_before: e.target.value })}
-                />
               </div>
 
               <label className="row" style={{gap:8}}>

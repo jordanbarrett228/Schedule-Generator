@@ -46,8 +46,6 @@ class MockEmployee:
     min_shift_hours: float = 4.0
     max_shift_hours: float = 8.0
     allow_split_shifts: bool = False
-    capable_opening: bool = True
-    open_not_before: dt.time = dt.time(7, 0)
     no_clopen: bool = True
     clopen_next_day_not_before: dt.time = dt.time(9, 0)
     preferred_hours: float = None
@@ -366,55 +364,7 @@ class TestAvailabilityConstraints:
 
 
 # ============================================================================
-# TEST GROUP 3: OPENING CAPABILITY CONSTRAINTS
-# ============================================================================
-
-class TestOpeningCapability:
-    """
-    Validate that opening capability restrictions work correctly.
-    """
-
-    def test_incapable_opening_blocks_early_hours(self):
-        """
-        TEST: Employees not capable of opening cannot work before their cutoff time.
-
-        Expected behavior:
-        - Employee is not capable_opening, open_not_before = 09:00
-        - Business opens at 08:00
-        - Result: employee cannot work 08:00-09:00
-        - Result: employee CAN work 09:00 onwards
-        """
-        employee = MockEmployee(
-            id=1,
-            name="Frank",
-            capable_opening=False,
-            open_not_before=dt.time(9, 0)
-        )
-        week_start = dt.date(2025, 1, 6)
-
-        week_grid = create_test_week_grid()  # Opens at 08:00
-        masks = build_masks(
-            employees=[employee],
-            emp_unavail={1: []},
-            emp_timeoff={1: []},
-            emp_locked={1: []},
-            week_grid=week_grid,
-            week_start=week_start,
-        )
-
-        monday_mask = masks.avail[1][0]
-
-        # 08:00-09:00 should be BLOCKED (4 slots = 1 hour)
-        for i in range(4):
-            assert monday_mask[i] == 0, f"Slot {i} (before 09:00) should be blocked for non-opener"
-
-        # 09:00 onwards should be available
-        for i in range(4, len(monday_mask)):
-            assert monday_mask[i] == 1, f"Slot {i} (09:00+) should be available"
-
-
-# ============================================================================
-# TEST GROUP 4: CLOPEN PROTECTION
+# TEST GROUP 3: CLOPEN PROTECTION
 # ============================================================================
 
 class TestClopenProtection:

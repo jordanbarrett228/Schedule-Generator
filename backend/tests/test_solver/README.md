@@ -20,9 +20,6 @@ Main test file covering all constraint logic:
    - `test_weekly_unavailable_blocks_recurring_time` - Weekly recurring blocks
    - `test_locked_shift_overrides_unavailable_not_timeoff` - Lock override behavior
 
-3. **Opening Capability**
-   - `test_incapable_opening_blocks_early_hours` - Early hour restrictions
-
 ## Running the Tests
 
 ### Install Dependencies
@@ -44,9 +41,6 @@ pytest tests/test_solver/ -v -k "timeoff"
 
 # Only availability tests
 pytest tests/test_solver/ -v -k "availability"
-
-# Only opening capability tests
-pytest tests/test_solver/ -v -k "opening"
 ```
 
 ### Run Single Test
@@ -95,16 +89,7 @@ The constraint is NOT working correctly. The assertion message explains what wen
 
 **Example**: If Bob is unavailable Wednesdays 14:00-16:00, the solver won't schedule him then UNLESS the manager explicitly creates a locked shift (for emergencies).
 
----
-
-### Opening Capability (Hard Constraint)
-**Purpose**: Some employees cannot work early morning shifts.
-
-**Behavior**:
-- If `capable_opening = False`, employee cannot work before `open_not_before` time
-- This prevents scheduling mistakes (e.g., scheduling a minor before school)
-
-**Example**: If Carol cannot work before 09:00, she won't be scheduled for 08:00 shifts even if the business opens at 08:00.
+**Note**: For early-morning restrictions (e.g., "cannot work before 9am"), use a weekly unavailable block for each day before 9am instead of the removed `capable_opening` field.
 
 ---
 
@@ -206,7 +191,7 @@ The constraint is NOT working correctly. The assertion message explains what wen
 ## Constraint Priority (Highest to Lowest)
 
 1. **Time-Off** (Hard) - Never violated
-2. **Opening Capability** (Hard) - Never violated
+2. **Weekly Unavailability** (Hard, but overridable by locks) - Blocks recurring time slots
 3. **Clopen Protection** (Hard) - Never violated
 4. **Weekly Hours** (Hard) - Never violated
 5. **Shift Length** (Hard) - Never violated

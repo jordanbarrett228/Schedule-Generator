@@ -86,28 +86,10 @@ def _collect_pre_solve_diagnostics(
                         "employee_name": e.name,
                         "day": d,
                         "time": min_to_hhmm(day.slots[i]),
-                        "message": f"Fixed shift for {e.name} at {_fmt_slot(d, day.slots[i])} conflicts with time-off/unavailability/opening cutoff.",
+                        "message": f"Fixed shift for {e.name} at {_fmt_slot(d, day.slots[i])} conflicts with time-off or unavailability.",
                     })
 
-    # 5) Opening capability conflicts in locks (incapable_opening & lock before open_not_before)
-    for e in employees:
-        if getattr(e, "capable_opening", True):
-            continue
-        cutoff = (e.open_not_before.hour * 60 + e.open_not_before.minute) if getattr(e, "open_not_before", None) else 7*60
-        for d, day in enumerate(week_grid):
-            for i, m in enumerate(day.slots):
-                if m < cutoff and lock_map.get((e.id, d), [0]*len(day.slots))[i] == 1:
-                    diags.append({
-                        "severity": "error",
-                        "code": "LOCK_BEFORE_OPENING_CUTOFF",
-                        "employee_id": e.id,
-                        "employee_name": e.name,
-                        "day": d,
-                        "time": min_to_hhmm(m),
-                        "message": f"{e.name} has a fixed shift before their allowed opening time at {_fmt_slot(d, m)}.",
-                    })
-
-    # 6) Clopen lock conflicts: last-hour lock day d AND early lock day d+1 before clopen cutoff
+    # 5) Clopen lock conflicts: last-hour lock day d AND early lock day d+1 before clopen cutoff
     SLOTS_PER_HOUR = 60 // 15  # your SLOT_MIN is 15; keep consistent
     for e in employees:
         if not getattr(e, "no_clopen", False):
