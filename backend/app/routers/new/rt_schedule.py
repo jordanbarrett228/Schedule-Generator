@@ -1,11 +1,11 @@
-# backend/app/routers/rt_schedule.py
+# backend/app/routers/new/rt_schedule.py
 from fastapi import APIRouter, Depends
 from sqlmodel import Session
 from typing import Optional
 from datetime import date
 
 from ...db import get_session
-from ...solver import generate_week_schedule
+from app.newSolver.core import generate_week_schedule
 from app.models.user import UserRead
 from app.auth import get_current_user
 

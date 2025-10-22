@@ -55,9 +55,9 @@ def next_monday(today: Optional[dt.date] = None) -> dt.date:
         today = dt.date.today()
     return today + dt.timedelta(days=(7 - today.weekday()) % 7)
 
-def build_week_grid(session: Session) -> List[DayGrid]:
+def build_week_grid(session: Session, user_id: int) -> List[DayGrid]:
     """Build per-day open-close grids in 15-min steps."""
-    bh_rows = session.exec(select(BusinessHours)).all()
+    bh_rows = session.exec(select(BusinessHours).where(BusinessHours.user_id == user_id)).all()
     by_day = {r.weekday: r for r in bh_rows}
     grid: List[DayGrid] = []
     for d in range(7):
@@ -72,18 +72,16 @@ def build_week_grid(session: Session) -> List[DayGrid]:
         grid.append(DayGrid(d, open_m, close_m, slots))
     return grid
 
-def generate_week_schedule(session: Session, week_start: Optional[dt.date] = None) -> dict:
+def generate_week_schedule(session: Session, user_id: int, week_start: Optional[dt.date] = None) -> dict:
     # Inputs
     week_start = week_start or next_monday()
-    gs = session.exec(select(GlobalSettings)).first()
+    gs = session.exec(select(GlobalSettings).where(GlobalSettings.user_id == user_id)).first()
     min_staff_default = gs.min_staff_default if gs else 2
 
-    employees: List[Employee] = session.exec(
-        select(Employee).where(Employee.active == True)  # noqa: E712
-    ).all()
+    employees: list[Employee] = list(session.exec(select(Employee).where(Employee.user_id == user_id).where(Employee.active == True)).all())
 
     # Quick out if no employees or closed all week
-    week_grid = build_week_grid(session)
+    week_grid = build_week_grid(session, user_id)
     if not employees or all(len(day.slots) == 0 for day in week_grid):
         return {
             "status": "empty",
@@ -94,7 +92,7 @@ def generate_week_schedule(session: Session, week_start: Optional[dt.date] = Non
         }
     
     # Staffing windows (all rows)
-    windows: list[StaffingWindow] = session.exec(select(StaffingWindow)).all()
+    windows: list[StaffingWindow] = list(session.exec(select(StaffingWindow).where(StaffingWindow.user_id == user_id)).all())
     win_by_day: Dict[int, list[StaffingWindow]] = {d: [] for d in range(7)}
     for w in windows:
         win_by_day[w.weekday].append(w)
