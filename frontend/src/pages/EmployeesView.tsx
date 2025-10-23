@@ -1,11 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { EmployeeEditor, type Employee } from '../components/EmployeeEditor'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 import { api } from '../utils/api'
 
 export default function EmployeesView() {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [newName, setNewName] = useState('')
   const [editing, setEditing] = useState<number | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<{ id: number; name: string } | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   const refresh = async () => {
     const data = await api.get('/api/employees')
@@ -20,14 +23,25 @@ export default function EmployeesView() {
     await refresh()
   }
 
-  const remove = async (id: number, name: string) => {
-    const ok = window.confirm(
-    `Are you sure you'd like to delete employee "${name}"?\n\nThis will permanently remove their constraints, time off, and locked shifts.`
-    )
-    if(!ok) return
+  const remove = (id: number, name: string) => {
+    setConfirmDelete({ id, name })
+  }
 
-    await api.delete(`/api/employees/${id}`)
+  const confirmRemove = async () => {
+    if (!confirmDelete) return
+
+    await api.delete(`/api/employees/${confirmDelete.id}`)
+    setConfirmDelete(null)
     await refresh()
+
+    // Restore focus to input after deletion
+    inputRef.current?.focus()
+  }
+
+  const cancelRemove = () => {
+    setConfirmDelete(null)
+    // Restore focus to input when canceling
+    inputRef.current?.focus()
   }
 
   const toggleActive = async (e: Employee) => {
@@ -35,7 +49,7 @@ export default function EmployeesView() {
     await refresh()
   }
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       add()
     }
@@ -45,7 +59,14 @@ export default function EmployeesView() {
     <section className="empViewSection">
       <h2>Employees</h2>
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, maxWidth: 'fit-content' }}>
-        <input className="input" placeholder="Employee name" value={newName} onChange={e => setNewName(e.target.value)} onKeyPress={handleKeyPress} />
+        <input
+          ref={inputRef}
+          className="input"
+          placeholder="Employee name"
+          value={newName}
+          onChange={e => setNewName(e.target.value)}
+          onKeyDown={handleKeyDown}
+        />
         <button className="button" onClick={add}>Add</button>
       </div>
       <table className="table">
@@ -69,6 +90,15 @@ export default function EmployeesView() {
       </table>
 
       {editing!==null && <EmployeeEditor empId={editing} onClose={()=>{ setEditing(null); refresh(); }} />}
+
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Delete Employee"
+          message={`Are you sure you'd like to delete employee "${confirmDelete.name}"?\n\nThis will permanently remove their constraints, time off, and locked shifts.`}
+          onConfirm={confirmRemove}
+          onCancel={cancelRemove}
+        />
+      )}
     </section>
   )
 }

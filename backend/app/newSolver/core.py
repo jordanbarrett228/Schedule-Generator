@@ -103,7 +103,7 @@ def generate_week_schedule(
 
     # 11) Solve
     solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = 30  # Increased from 5 to 30 seconds for better solutions
+    solver.parameters.max_time_in_seconds = 120 
     solver.parameters.num_search_workers = 8
     status = solver.Solve(model)
 
@@ -142,7 +142,7 @@ def generate_week_schedule(
 
         # Solve relaxed model
         solver_relaxed = cp_model.CpSolver()
-        solver_relaxed.parameters.max_time_in_seconds = 30  # Increased from 5 to 30 seconds
+        solver_relaxed.parameters.max_time_in_seconds = 120
         solver_relaxed.parameters.num_search_workers = 8
         status_relaxed = solver_relaxed.Solve(model_relaxed)
 

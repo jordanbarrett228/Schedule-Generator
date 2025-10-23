@@ -183,11 +183,19 @@ body {
   max-width: fit-content;
   margin: 0 auto;
 }
-.settingsSection { 
-  border: 1px solid var(--border); 
-  border-radius: 12px; 
-  padding: var(--pad); 
-  background:#fff; 
+.settingsSection {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: var(--pad);
+  background:#fff;
+  max-width: fit-content;
+  margin: 0 auto;
+}
+.staffing-prefs-view {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: var(--pad);
+  background:#fff;
   max-width: fit-content;
   margin: 0 auto;
 }
@@ -244,4 +252,52 @@ body {
 }
 .button.danger-soft:hover {
   background: #fecaca;
+}
+
+/* Confirmation Dialog Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.modal-content {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  padding: 24px;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  animation: slideUp 0.2s ease-out;
+}
+
+.button-danger {
+  background: #dc2626;
+  color: #fff;
+  border-color: #dc2626;
+}
+.button-danger:hover {
+  background: #b91c1c;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
