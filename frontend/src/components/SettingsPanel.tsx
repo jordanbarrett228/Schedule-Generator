@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { fetchWithAuth } from '../utils/fetchWithAuth'
+import { api } from '../utils/api'
 
 export type GlobalSettings = {
   id: number
@@ -23,8 +23,8 @@ export function SettingsPanel() {
   async function load(){
     setLoading(true)
     const [g, rawBh] = await Promise.all([
-      fetchWithAuth('/api/settings/global').then(r=>r.json()),
-      fetchWithAuth('/api/settings/business_hours').then(r=>r.json()),
+      api.get('/api/settings/global'),
+      api.get('/api/settings/business_hours'),
     ])
     setGs(g)
 
@@ -36,26 +36,20 @@ export function SettingsPanel() {
 
   const saveGlobal = async () => {
     if (!gs) return
-    await fetchWithAuth('/api/settings/global', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(gs) })
+    await api.put('/api/settings/global', gs)
   }
 
   const saveBusinessHours = async () => {
     // send array without ids is okay; backend upserts by weekday
     const payload = bh.map(({weekday, open_time, close_time}) => ({weekday, open_time, close_time}))
-    await fetchWithAuth('/api/settings/business_hours', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+    await api.put('/api/settings/business_hours', payload)
     await load()
   }
 
   const fileRef = useRef<HTMLInputElement>(null)
   const backupData = async () => {
     try {
-        const res = await fetchWithAuth('/api/admin/backup')
-        if (!res.ok) {
-        const t = await res.text()
-        alert(`Backup failed: ${t || res.statusText}`)
-        return
-        }
-        const data = await res.json()
+        const data = await api.get('/api/admin/backup')
         const stamp = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
         const url = URL.createObjectURL(blob)
@@ -66,8 +60,8 @@ export function SettingsPanel() {
         a.click()
         a.remove()
         URL.revokeObjectURL(url)
-    } catch (e) {
-        alert('Backup failed. See console for details.')
+    } catch (e: any) {
+        alert(`Backup failed: ${e.message}`)
         console.error(e)
     }
     }
@@ -84,12 +78,7 @@ const onRestoreFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
       'Restore will replace current data with the backup contents. Continue?'
     )
     if (!ok) return
-
-    const res = await fetchWithAuth('/api/admin/restore', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
+    const res = await api.post('/api/admin/restore', payload)
     if (!res.ok) {
       const t = await res.text()
       alert(`Restore failed: ${t || res.statusText}`)

@@ -21,10 +21,10 @@ from app.newSolver.diagnostics import _collect_pre_solve_diagnostics
 
 
 def generate_week_schedule(
-    session: Session, user_id: int, week_start: dt.date | None = None
+    session: Session, week_start: dt.date | None = None
 ) -> dict:
     """
-    Main solver orchestrator for one user's schedule.
+    Main solver orchestrator for schedule generation.
 
     Steps:
       1. Load DB data (employees, unavailable blocks, timeoff, locked shifts, etc.)
@@ -37,11 +37,11 @@ def generate_week_schedule(
     # 1) Establish week start
     week_start = week_start or next_monday()
 
-    # 2) Load all data for this user
-    data = load_user_data(session, user_id)
+    # 2) Load all data
+    data = load_user_data(session)
 
     # 3) Build grid (open/close slots)
-    week_grid = build_week_grid(session, user_id)
+    week_grid = build_week_grid(session)
 
     # 4) Build availability & lock masks
     masks = build_masks(
@@ -56,7 +56,6 @@ def generate_week_schedule(
     # 5) Compute staffing targets and caps
     soft_target, hard_cap, prefer_full_day, min_staff_default = compute_targets(
         session=session,
-        user_id=user_id,
         employees_count=len(data.employees),
         week_grid=week_grid,
     )
@@ -104,13 +103,14 @@ def generate_week_schedule(
 
     # 11) Solve
     solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = 5
+    solver.parameters.max_time_in_seconds = 30  # Increased from 5 to 30 seconds for better solutions
     solver.parameters.num_search_workers = 8
     status = solver.Solve(model)
 
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         # Try relaxation: remove minimum hours constraint
-        print("[Solver] Initial attempt failed. Trying with relaxed weekly minimum hours...")
+        import sys
+        print("[Solver] Initial attempt failed. Trying with relaxed weekly minimum hours...", file=sys.stderr)
 
         model_relaxed = cp_model.CpModel()
         X_relaxed = build_cp_variables(model_relaxed, data.employees, week_grid, masks.avail, masks.lock)
@@ -142,7 +142,7 @@ def generate_week_schedule(
 
         # Solve relaxed model
         solver_relaxed = cp_model.CpSolver()
-        solver_relaxed.parameters.max_time_in_seconds = 5
+        solver_relaxed.parameters.max_time_in_seconds = 30  # Increased from 5 to 30 seconds
         solver_relaxed.parameters.num_search_workers = 8
         status_relaxed = solver_relaxed.Solve(model_relaxed)
 

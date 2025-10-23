@@ -57,9 +57,9 @@ def next_monday(today: dt.date | None = None) -> dt.date:
 
 
 # ---- Week grid builder ----
-def build_week_grid(session: Session, user_id: int) -> List[DayGrid]:
+def build_week_grid(session: Session) -> List[DayGrid]:
     """
-    Build 7 DayGrid objects (Mon..Sun) based on the user's BusinessHours.
+    Build 7 DayGrid objects (Mon..Sun) based on BusinessHours.
 
     Rules/Notes
     ----------
@@ -67,9 +67,7 @@ def build_week_grid(session: Session, user_id: int) -> List[DayGrid]:
     - Slots are half-open intervals with 15-minute step, i.e. [open, close) by SLOT_MIN.
       This matches post-processing that adds SLOT_MIN to the last '1' to compute an end time.
     """
-    rows = session.exec(
-        select(BusinessHours).where(BusinessHours.user_id == user_id)
-    ).all()
+    rows = session.exec(select(BusinessHours)).all()
 
     by_day = {r.weekday: r for r in rows}
     grid: List[DayGrid] = []

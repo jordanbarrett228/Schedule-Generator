@@ -1,0 +1,40 @@
+# Electron Build Artifacts
+dist-electron/
+node_modules/
+
+# Frontend Build
+frontend/dist/
+frontend/node_modules/
+
+# Python Build
+backend/dist/
+backend/build/
+backend/**/__pycache__/
+backend/**/*.pyc
+
+# Data Files
+data/
+test_data/
+*.db
+*.db-journal
+
+# Python Runtime (if bundled)
+python-runtime/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+
+# Logs
+*.log
+npm-debug.log*

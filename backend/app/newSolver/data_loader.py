@@ -24,9 +24,9 @@ class ScheduleInputs:
     staffing_windows: List[StaffingWindow]
 
 
-def load_user_data(session: Session, user_id: int) -> ScheduleInputs:
+def load_user_data(session: Session) -> ScheduleInputs:
     """
-    Load all schedule-related data for a specific user from schedule.db.
+    Load all schedule-related data from schedule.db (single-user mode).
 
     Returns a structured object containing:
       - active employees
@@ -37,11 +37,7 @@ def load_user_data(session: Session, user_id: int) -> ScheduleInputs:
     """
     # --- Employees (active only)
     employees: List[Employee] = list(
-        session.exec(
-            select(Employee)
-            .where(Employee.user_id == user_id)
-            .where(Employee.active == True)
-        ).all()
+        session.exec(select(Employee).where(Employee.active == True)).all()
     )
 
     # --- Related data dictionaries keyed by employee.id
@@ -64,17 +60,9 @@ def load_user_data(session: Session, user_id: int) -> ScheduleInputs:
         )
 
     # --- Global settings and schedule context
-    settings: Optional[GlobalSettings] = session.exec(
-        select(GlobalSettings).where(GlobalSettings.user_id == user_id)
-    ).first()
-
-    business_hours: List[BusinessHours] = list(
-        session.exec(select(BusinessHours).where(BusinessHours.user_id == user_id)).all()
-    )
-
-    staffing_windows: List[StaffingWindow] = list(
-        session.exec(select(StaffingWindow).where(StaffingWindow.user_id == user_id)).all()
-    )
+    settings: Optional[GlobalSettings] = session.exec(select(GlobalSettings)).first()
+    business_hours: List[BusinessHours] = list(session.exec(select(BusinessHours)).all())
+    staffing_windows: List[StaffingWindow] = list(session.exec(select(StaffingWindow)).all())
 
     return ScheduleInputs(
         employees=employees,

@@ -10,6 +10,8 @@ from app.auth import get_current_user
 
 router = APIRouter(prefix="/api/employees", tags=["employees"])
 
+# ===== HTTP ENDPOINTS (for legacy/web mode) =====
+
 @router.get("", response_model=List[EmployeeRead])
 def list_employees(session: Session = Depends(get_session), current_user: UserRead = Depends(get_current_user)):
     return session.exec(
@@ -46,3 +48,58 @@ def delete_employee(emp_id: int, session: Session = Depends(get_session), curren
     session.delete(emp)
     session.commit()
     return {"ok": True}
+
+
+# ===== IPC IMPLEMENTATIONS (for standalone/Electron mode - no auth) =====
+
+def get_employees_impl():
+    """Get all employees (single-user mode)"""
+    with next(get_session()) as session:
+        employees = session.exec(select(Employee).order_by(Employee.id)).all()
+        return [EmployeeRead.model_validate(emp).model_dump() for emp in employees]
+
+
+def get_employee_impl(emp_id: int):
+    """Get single employee"""
+    with next(get_session()) as session:
+        emp = session.get(Employee, emp_id)
+        if not emp:
+            raise ValueError("Employee not found")
+        return EmployeeRead.model_validate(emp).model_dump()
+
+
+def create_employee_impl(data: dict):
+    """Create new employee (single-user mode)"""
+    with next(get_session()) as session:
+        emp = Employee.model_validate(EmployeeCreate(**data))
+        # No user_id needed in single-user mode
+        session.add(emp)
+        session.commit()
+        session.refresh(emp)
+        return EmployeeRead.model_validate(emp).model_dump()
+
+
+def update_employee_impl(emp_id: int, data: dict):
+    """Update employee"""
+    with next(get_session()) as session:
+        emp = session.get(Employee, emp_id)
+        if not emp:
+            raise ValueError("Employee not found")
+        for k, v in data.items():
+            if hasattr(emp, k):
+                setattr(emp, k, v)
+        session.add(emp)
+        session.commit()
+        session.refresh(emp)
+        return EmployeeRead.model_validate(emp).model_dump()
+
+
+def delete_employee_impl(emp_id: int):
+    """Delete employee"""
+    with next(get_session()) as session:
+        emp = session.get(Employee, emp_id)
+        if not emp:
+            raise ValueError("Employee not found")
+        session.delete(emp)
+        session.commit()
+        return {"ok": True}

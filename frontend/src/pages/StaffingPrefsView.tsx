@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { fetchWithAuth } from '../utils/fetchWithAuth'
+import { api } from '../utils/api'
 
 type StaffingWindow = {
   id: number
@@ -49,10 +49,10 @@ export default function StaffingPrefsView() {
 
   useEffect(() => {
     ;(async () => {
-      const r1 = await fetchWithAuth('/api/staffing-windows')
-      setRows(await r1.json())
-      const r2 = await fetchWithAuth('/api/settings/global')
-      setGs(await r2.json())
+      const windows = await api.get('/api/staffing-windows')
+      setRows(windows)
+      const settings = await api.get('/api/settings/global')
+      setGs(settings)
     })()
   }, [])
 
@@ -65,17 +65,12 @@ export default function StaffingPrefsView() {
       max_staff: maxStaff ? Number(maxStaff) : null,
       prefer_full_length: prefFull,
     }
-    const r = await fetchWithAuth('/api/staffing-windows', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-    const rec: StaffingWindow = await r.json()
+    const rec: StaffingWindow = await api.post('/api/staffing-windows', payload)
     setRows((prev) => [...prev, rec])
   }
 
   const delWindow = async (id: number) => {
-    await fetchWithAuth(`/api/staffing-windows/${id}`, { method: 'DELETE' })
+    await api.delete(`/api/staffing-windows/${id}`)
     setRows((prev) => prev.filter((x) => x.id !== id))
   }
 
@@ -83,11 +78,7 @@ export default function StaffingPrefsView() {
     if (!gs) return
     const next: GlobalSettings = { ...gs, ...patch }
     setGs(next)
-    await fetchWithAuth('/api/settings/global', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(next),
-    })
+    await api.put('/api/settings/global', next)
   }
 
   const quickWeekdayCapBefore = async () => {
@@ -101,96 +92,100 @@ export default function StaffingPrefsView() {
         max_staff: 2,
         prefer_full_length: false,
       }
-      const r = await fetchWithAuth('/api/staffing-windows', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      const rec: StaffingWindow = await r.json()
+      const rec: StaffingWindow = await api.post('/api/staffing-windows', payload)
       setRows((prev) => [...prev, rec])
     }
   }
 
   return (
-    <div className="section">
-      <h2>Staffing Preferences</h2>
+    <section className="staffing-prefs-view">
+      <h2>Staffing Windows & Coordinator Opening</h2>
 
-      <div className="panel" style={{ marginBottom: 16 }}>
-        <h3 style={{ marginTop: 0 }}>Coordinator Opening</h3>
-        {gs && (
-          <div
-            className="grid"
-            style={{ gap: 8, gridTemplateColumns: 'repeat(7, minmax(120px,1fr))' }}
-          >
-            {dayLabels.map((label, idx) => {
-              const key = openingKey(idx)
-              return (
-                <label key={key} className="row" style={{ gap: 6 }}>
-                  <input
-                    type="checkbox"
-                    checked={Boolean(gs[key])}
-                    onChange={(e) => saveGs({ [key]: e.target.checked })}
-                  />
-                  {label}
-                </label>
-              )
-            })}
-          </div>
-        )}
-        {gs && (
-          <div className="row" style={{ gap: 8, marginTop: 8 }}>
-            <div className="label">Opening window (mins)</div>
+      <div style={{ marginBottom: 24 }}>
+        <h3>Coordinator Opening</h3>
+        <p style={{ fontSize: 13, marginBottom: 8, color: '#666' }}>
+          Select which days require a coordinator for the opening window.
+        </p>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
+          {dayLabels.map((lbl, idx) => {
+            const key = openingKey(idx)
+            return (
+              <label key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <input
+                  type="checkbox"
+                  checked={gs ? (gs[key] as boolean) : false}
+                  onChange={(e) => saveGs({ [key]: e.target.checked })}
+                />
+                <span>{lbl}</span>
+              </label>
+            )
+          })}
+        </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
+          Opening window (minutes):
+          <input
+            type="number"
+            className="input"
+            style={{ width: 80 }}
+            value={gs?.coordinator_open_window_minutes ?? 60}
+            onChange={(e) => saveGs({ coordinator_open_window_minutes: Number(e.target.value) })}
+          />
+        </label>
+      </div>
+
+      <div style={{ marginBottom: 24 }}>
+        <h3>Staffing Windows</h3>
+        <p style={{ fontSize: 13, marginBottom: 8, color: '#666' }}>
+          Define time windows with specific min/max staffing requirements or full-length preferences.
+        </p>
+
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <label>
+            <div style={{ fontSize: 13, marginBottom: 2 }}>Weekday</div>
+            <select className="input" value={weekday} onChange={(e) => setWeekday(Number(e.target.value))}>
+              {dayLabels.map((lbl, idx) => (
+                <option key={idx} value={idx}>
+                  {lbl}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <div style={{ fontSize: 13, marginBottom: 2 }}>Start</div>
+            <input className="input" type="time" value={start} onChange={(e) => setStart(e.target.value)} />
+          </label>
+          <label>
+            <div style={{ fontSize: 13, marginBottom: 2 }}>End</div>
+            <input className="input" type="time" value={end} onChange={(e) => setEnd(e.target.value)} />
+          </label>
+          <label>
+            <div style={{ fontSize: 13, marginBottom: 2 }}>Min Staff</div>
             <input
               className="input"
               type="number"
-              min={15}
-              step={15}
-              value={gs.coordinator_open_window_minutes}
-              onChange={(e) =>
-                saveGs({ coordinator_open_window_minutes: Number(e.target.value) })
-              }
+              style={{ width: 80 }}
+              placeholder="–"
+              value={minStaff}
+              onChange={(e) => setMinStaff(e.target.value)}
             />
-          </div>
-        )}
-      </div>
-
-      <div className="panel" style={{ marginBottom: 16 }}>
-        <h3 style={{ marginTop: 0 }}>Windows</h3>
-        <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-          <select className="input" value={weekday} onChange={(e) => setWeekday(Number(e.target.value))}>
-            {dayLabels.map((d, i) => (
-              <option value={i} key={i}>
-                {d}
-              </option>
-            ))}
-          </select>
-          <input className="input" type="time" value={start} onChange={(e) => setStart(e.target.value)} />
-          <input className="input" type="time" value={end} onChange={(e) => setEnd(e.target.value)} />
-          <input
-            className="input"
-            type="number"
-            min={0}
-            placeholder="Soft min (optional)"
-            value={minStaff}
-            onChange={(e) => setMinStaff(e.target.value)}
-          />
-          <input
-            className="input"
-            type="number"
-            min={0}
-            placeholder="Hard max (optional)"
-            value={maxStaff}
-            onChange={(e) => setMaxStaff(e.target.value)}
-          />
-          <label className="row" style={{ gap: 6 }}>
+          </label>
+          <label>
+            <div style={{ fontSize: 13, marginBottom: 2 }}>Max Staff</div>
+            <input
+              className="input"
+              type="number"
+              style={{ width: 80 }}
+              placeholder="–"
+              value={maxStaff}
+              onChange={(e) => setMaxStaff(e.target.value)}
+            />
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <input type="checkbox" checked={prefFull} onChange={(e) => setPrefFull(e.target.checked)} />
-            Prefer full-length shifts
+            <span style={{ fontSize: 13 }}>Prefer Full</span>
           </label>
           <button className="button" onClick={addWindow}>
-            Add
-          </button>
-          <button className="button" onClick={quickWeekdayCapBefore}>
-            Quick add: Weekday ≤2 before 7:00
+            Add Window
           </button>
         </div>
 
@@ -200,9 +195,9 @@ export default function StaffingPrefsView() {
               <th>Day</th>
               <th>Start</th>
               <th>End</th>
-              <th>Soft Min</th>
-              <th>Hard Max</th>
-              <th>Full-length</th>
+              <th>Min</th>
+              <th>Max</th>
+              <th>Pref Full</th>
               <th></th>
             </tr>
           </thead>
@@ -212,10 +207,10 @@ export default function StaffingPrefsView() {
                 <td>{dayLabels[r.weekday]}</td>
                 <td>{r.start_time}</td>
                 <td>{r.end_time}</td>
-                <td>{r.min_staff ?? ''}</td>
-                <td>{r.max_staff ?? ''}</td>
-                <td>{r.prefer_full_length ? 'Yes' : ''}</td>
-                <td>
+                <td>{r.min_staff ?? '–'}</td>
+                <td>{r.max_staff ?? '–'}</td>
+                <td>{r.prefer_full_length ? 'Yes' : 'No'}</td>
+                <td style={{ textAlign: 'right' }}>
                   <button className="button" onClick={() => delWindow(r.id)}>
                     Delete
                   </button>
@@ -224,12 +219,13 @@ export default function StaffingPrefsView() {
             ))}
           </tbody>
         </table>
-      </div>
 
-      <div className="label">
-        Tip: for “Sunday min 4 all day”, add a Sunday window open→close with Soft Min = 4 and check “Prefer
-        full-length”.
+        <div style={{ marginTop: 16 }}>
+          <button className="button" onClick={quickWeekdayCapBefore}>
+            Quick Add: Mon–Fri 00:00–07:00 (max=2)
+          </button>
+        </div>
       </div>
-    </div>
+    </section>
   )
 }

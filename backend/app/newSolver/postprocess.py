@@ -48,8 +48,20 @@ def summarize_coverage(shifts, week_grid):
     coverage = []
     for d, day in enumerate(week_grid):
         if not day.slots:
-            coverage.append({"weekday":d,"weekday_name":WEEKDAYS[d],"segments":[]})
+            # Day is closed
+            coverage.append({
+                "weekday": d,
+                "weekday_name": WEEKDAYS[d],
+                "open": None,
+                "close": None,
+                "segments": []
+            })
             continue
+
+        # Day is open - include open/close times
+        open_time = min_to_hhmm(day.open_min)
+        close_time = min_to_hhmm(day.close_min)
+
         counts = [0]*len(day.slots)
         for s in [s for s in shifts if s["weekday"]==d]:
             s_start = hhmm_to_min(s["start"])
@@ -65,5 +77,11 @@ def summarize_coverage(shifts, week_grid):
                          "end":min_to_hhmm(day.slots[j-1]+SLOT_MIN),
                          "count":int(c)})
             i=j
-        coverage.append({"weekday":d,"weekday_name":WEEKDAYS[d],"segments":segs})
+        coverage.append({
+            "weekday": d,
+            "weekday_name": WEEKDAYS[d],
+            "open": open_time,
+            "close": close_time,
+            "segments": segs
+        })
     return coverage

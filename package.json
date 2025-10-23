@@ -1,0 +1,56 @@
+{
+  "name": "schedule-generator",
+  "version": "1.0.0",
+  "description": "Standalone Schedule Generator Desktop Application",
+  "main": "electron/main.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build:frontend": "cd frontend && npm run build",
+    "build:python": "cd backend && pyinstaller --clean run_app.spec",
+    "build": "npm run build:frontend && electron-builder",
+    "build:portable": "npm run build:frontend && electron-builder --dir",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "build": {
+    "appId": "com.schedulegenerator.app",
+    "productName": "Schedule Generator",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "electron/**/*",
+      "frontend/dist/**/*",
+      "backend/**/*",
+      "!backend/build/**/*",
+      "!backend/dist/**/*",
+      "!backend/__pycache__/**/*",
+      "!backend/**/__pycache__/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/schedule-backend",
+        "to": "schedule-backend",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "electron/icon.ico"
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable.${ext}"
+    }
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  }
+}

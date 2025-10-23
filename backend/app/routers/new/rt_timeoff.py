@@ -42,3 +42,40 @@ def delete_timeoff(rec_id: int, session: Session = Depends(get_session), current
     session.delete(rec)
     session.commit()
     return {"ok": True}
+
+
+# ===== IPC IMPLEMENTATIONS (for standalone/Electron mode - no auth) =====
+
+def get_timeoff_impl(emp_id: int):
+    """Get all time-off records for employee"""
+    with next(get_session()) as session:
+        emp = session.get(Employee, emp_id)
+        if not emp:
+            raise ValueError("Employee not found")
+        records = session.exec(select(TimeOff).where(TimeOff.employee_id == emp_id)).all()
+        return [TimeOffRead.model_validate(rec).model_dump() for rec in records]
+
+
+def create_timeoff_impl(emp_id: int, data: dict):
+    """Create new time-off record"""
+    with next(get_session()) as session:
+        emp = session.get(Employee, emp_id)
+        if not emp:
+            raise ValueError("Employee not found")
+        data['employee_id'] = emp_id
+        rec = TimeOff.model_validate(TimeOffCreate(**data))
+        session.add(rec)
+        session.commit()
+        session.refresh(rec)
+        return TimeOffRead.model_validate(rec).model_dump()
+
+
+def delete_timeoff_impl(rec_id: int):
+    """Delete time-off record"""
+    with next(get_session()) as session:
+        rec = session.get(TimeOff, rec_id)
+        if not rec:
+            raise ValueError("Time off not found")
+        session.delete(rec)
+        session.commit()
+        return {"ok": True}

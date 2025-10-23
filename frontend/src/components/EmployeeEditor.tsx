@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { format12 } from '../lib/time';
-import { fetchWithAuth } from '../utils/fetchWithAuth';
+import { api } from '../utils/api';
 
 export type Employee = {
   id: number
@@ -47,10 +47,10 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
   async function load() {
     setLoading(true)
     const [e, u, t, l] = await Promise.all([
-      fetchWithAuth(`/api/employees`).then(r=>r.json()).then((arr: Employee[])=>arr.find(x=>x.id===empId)),
-      fetchWithAuth(`/api/employees/${empId}/unavailable`).then(r=>r.json()),
-      fetchWithAuth(`/api/employees/${empId}/timeoff`).then(r=>r.json()),
-      fetchWithAuth(`/api/employees/${empId}/locked_shifts`).then(r=>r.json()),
+      api.get('/api/employees/' + empId),
+      api.get('/api/employees/' + empId + '/unavailable'),
+      api.get('/api/employees/' + empId + '/timeoff'),
+      api.get('/api/employees/' + empId + '/locked_shifts')
     ])
     if (e) setEmp(e)
     setUnavail(u)
@@ -68,67 +68,52 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
       alert('Name is required.')
       return
     }
-    await fetchWithAuth(`/api/employees/${emp.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
+    await api.put( `/api/employees/${emp.id}`, payload )
     onClose()
   }
 
   const addUnavail = async (weekday: number, start: string, end: string) => {
-    const res = await fetchWithAuth(`/api/employees/${empId}/unavailable`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ employee_id: empId, weekday, start_time: start, end_time: end })
+    const rec = await api.post(`/api/employees/${empId}/unavailable`, {
+      employee_id: empId, weekday, start_time: start, end_time: end
     })
-    const rec = await res.json()
     setUnavail(p=>[...p, rec])
   }
   const delUnavail = async (id: number) => {
-    await fetchWithAuth(`/api/unavailable/${id}`, { method:'DELETE' })
+    await api.delete(`/api/unavailable/${id}`)
     setUnavail(p=>p.filter(x=>x.id!==id))
   }
   const updateUnavail = async (id: number, weekday: number, start: string, end: string) => {
-    const res = await fetchWithAuth(`/api/unavailable/${id}`, {
-      method:'PUT', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ weekday, start_time: start, end_time: end })
-    })
-    if (!res.ok) {
-      const txt = await res.text()
-      alert(`Failed to update: ${txt}`)
-      return
+    try {
+      const rec = await api.put(`/api/unavailable/${id}`, {
+        weekday, start_time: start, end_time: end
+      })
+      setUnavail(p => p.map(x => x.id === id ? { ...x, weekday: rec.weekday, start_time: rec.start_time, end_time: rec.end_time } : x))
+    } catch (err: any) {
+      alert(`Failed to update: ${err.message}`)
     }
-    const rec = await res.json()
-    setUnavail(p => p.map(x => x.id === id ? { ...x, weekday: rec.weekday, start_time: rec.start_time, end_time: rec.end_time } : x))
   }
 
   const addTimeOff = async (date: string, all_day: boolean, start_time?: string|null, end_time?: string|null, reason?: string) => {
-    const res = await resFetch(`/api/employees/${empId}/timeoff`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ employee_id: empId, date, all_day, start_time, end_time, reason })
+    const rec = await api.post(`/api/employees/${empId}/timeoff`, {
+      employee_id: empId, date, all_day, start_time, end_time, reason
     })
-    const rec = await res.json()
     setTimeOff(p=>[...p, rec])
   }
-  // small helper so we don't shadow res var name above
-  function resFetch(input: RequestInfo | URL, init?: RequestInit) { return fetch(input, init) }
 
   const delTimeOff = async (id: number) => {
-    await fetchWithAuth(`/api/timeoff/${id}`, { method:'DELETE' })
+    await api.delete(`/api/timeoff/${id}`)
     setTimeOff(p=>p.filter(x=>x.id!==id))
   }
-  
+
   const addLocked = async (weekday: number, start_time: string, end_time: string, note: string) => {
-    const res = await fetchWithAuth(`/api/employees/${empId}/locked_shifts`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ employee_id: empId, weekday, start_time, end_time, note })
+    const rec = await api.post(`/api/employees/${empId}/locked-shifts`, {
+      employee_id: empId, weekday, start_time, end_time, note
     })
-    const rec = await res.json()
     setLocked(p=>[...p, rec])
   }
 
   const delLocked = async (id: number) => {
-    await fetchWithAuth(`/api/locked_shifts/${id}`, { method:'DELETE' })
+    await api.delete(`/api/locked-shift/${id}`)
     setLocked(p=>p.filter(x=>x.id!==id))
   }
 
@@ -137,23 +122,17 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
       alert('End time must be after start time.')
       return
     }
-    const res = await fetchWithAuth(`/api/employees/${empId}/locked_shifts/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ weekday, start_time, end_time, note }),
-    });
-    if (!res.ok) {
-      const t = await res.text()
-      alert(`Failed to update: ${t}`)
-      return
-    }
-    const rec = await res.json()
-    setLocked(p =>
-      p.map(x => x.id === id
-        ? { ...x, weekday: rec.weekday, start_time: rec.start_time, end_time: rec.end_time, note: rec.note ?? '' }
-        : x
+    try {
+      const rec = await api.put(`/api/locked-shift/${id}`, { weekday, start_time, end_time, note })
+      setLocked(p =>
+        p.map(x => x.id === id
+          ? { ...x, weekday: rec.weekday, start_time: rec.start_time, end_time: rec.end_time, note: rec.note ?? '' }
+          : x
+        )
       )
-    )
+    } catch (err: any) {
+      alert(`Failed to update: ${err.message}`)
+    }
   }
 
 

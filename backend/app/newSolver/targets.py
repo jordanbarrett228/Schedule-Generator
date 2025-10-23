@@ -10,7 +10,6 @@ from app.models.staffing_window import StaffingWindow
 
 def compute_targets(
     session: Session,
-    user_id: int,
     employees_count: int,
     week_grid: List[DayGrid],
 ) -> Tuple[List[List[int]], List[List[int]], List[bool], int]:
@@ -28,17 +27,11 @@ def compute_targets(
     """
 
     # ---- Global settings ----
-    gs = session.exec(
-        select(GlobalSettings).where(GlobalSettings.user_id == user_id)
-    ).first()
+    gs = session.exec(select(GlobalSettings)).first()
     min_staff_default: int = gs.min_staff_default if gs else 2
 
     # ---- Staffing windows ----
-    windows = list(
-        session.exec(
-            select(StaffingWindow).where(StaffingWindow.user_id == user_id)
-        ).all()
-    )  # ensure list type for Pylance compatibility
+    windows = list(session.exec(select(StaffingWindow)).all())
     win_by_day: Dict[int, List[StaffingWindow]] = {d: [] for d in range(7)}
     for w in windows:
         win_by_day[w.weekday].append(w)

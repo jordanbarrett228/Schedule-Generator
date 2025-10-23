@@ -10,17 +10,17 @@ class EmployeeBase(DBBase):
     active: bool = True  # treat as "include in generation" toggle for now
 
     # Hard constraints (per-employee caps)
-    min_hours_week: float = 20
+    min_hours_week: float = 20  # HR requirement: minimum 20 hours per employee
     max_hours_week: float = 40
     min_shift_hours: float = 4
-    max_shift_hours: float = 8
+    max_shift_hours: float = 7
 
     # Clopen protection
     no_clopen: bool = False
     clopen_next_day_not_before: Optional[dt.time] = Field(default=dt.time(9, 0), sa_column=Column(SATime, nullable=True))
 
     # Soft preferences
-    preferred_hours: Optional[float] = None
+    preferred_hours: Optional[float] = 25
     prefer_opening: bool = True
     prefer_mid: bool = True
     prefer_closing: bool = True
@@ -28,7 +28,7 @@ class EmployeeBase(DBBase):
     allow_split_shifts: bool = False
 
     # Soft: target # of days off in a week
-    target_days_off: Optional[int] = None  # 0..7
+    target_days_off: Optional[int] = 2  # 0..7
 
     position: str = Field(default="Guest Services Specialist")
 

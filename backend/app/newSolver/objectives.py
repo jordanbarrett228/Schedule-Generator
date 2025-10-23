@@ -15,10 +15,10 @@ def add_objective(model: cp_model.CpModel,
     Adds multi-weighted objective identical to original logic.
     Returns dict of all auxiliary vars for test visibility.
     """
-    W_COVER = 1000
-    W_HOURS = 10
-    W_FRAG = 1
-    W_DAYS_OFF = 8
+    W_COVER = 1000      # Coverage shortage penalty (highest priority)
+    W_HOURS = 50        # Preferred hours deviation penalty (balanced for better performance)
+    W_FRAG = 1          # Fragmentation penalty (minimize shift starts)
+    W_DAYS_OFF = 50     # Days off deviation penalty (balanced for better performance)
 
     terms = [W_COVER * under_staff[k] for k in under_staff]
 

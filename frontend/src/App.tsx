@@ -1,16 +1,11 @@
-import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom'
+import { HashRouter, Routes, Route, NavLink } from 'react-router-dom'
 import DashboardView from './pages/DashboardView'
 import EmployeesView from './pages/EmployeesView'
 import SettingsView from './pages/SettingsView'
 import StaffingPrefsView from './pages/StaffingPrefsView'
-import LoginPage from './pages/LoginPage'
-import { ProtectedRoute } from './components/ProtectedRoute'
-import { useAuth } from './context/AuthContext'
 import './styles.css'
 
 function AppShell() {
-  const { logout } = useAuth()
-
   return (
     <div className="app-shell">
       <nav className="topnav">
@@ -21,13 +16,6 @@ function AppShell() {
           <NavLink to="/settings">Settings</NavLink>
           <NavLink to="/staffing-prefs">Staffing Prefs</NavLink>
         </div>
-        <button
-          onClick={logout}
-          className="button small"
-          style={{ marginLeft: 'auto', marginRight: 12 }}
-        >
-          Logout
-        </button>
       </nav>
       <main className="content">
         <Routes>
@@ -43,21 +31,10 @@ function AppShell() {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
-        {/* Public route for login */}
-        <Route path="/login" element={<LoginPage />} />
-
-        {/* All other routes require login */}
-        <Route
-          path="/*"
-          element={
-            <ProtectedRoute>
-              <AppShell />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/*" element={<AppShell />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   )
 }
