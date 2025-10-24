@@ -12,7 +12,7 @@ from .db import init_db, set_data_directory
 from . import ipc_implementations as impl
 
 
-def handle_request(method: str, endpoint: str, data: dict = None):
+def handle_request(method: str, endpoint: str, data: dict | None = None):
     """
     Route requests to appropriate handlers
     Since we're in single-user mode, we don't need authentication
@@ -28,13 +28,13 @@ def handle_request(method: str, endpoint: str, data: dict = None):
                 if method == 'GET':
                     return impl.get_employees_impl()
                 elif method == 'POST':
-                    return impl.create_employee_impl(data)
+                    return impl.create_employee_impl(data or {})
             elif len(parts) == 3:  # /api/employees/{id}
                 emp_id = int(parts[2])
                 if method == 'GET':
                     return impl.get_employee_impl(emp_id)
                 elif method == 'PUT':
-                    return impl.update_employee_impl(emp_id, data)
+                    return impl.update_employee_impl(emp_id, data or {})
                 elif method == 'DELETE':
                     return impl.delete_employee_impl(emp_id)
             elif len(parts) == 4 and parts[3] == 'timeoff':  # /api/employees/{id}/timeoff
@@ -42,19 +42,19 @@ def handle_request(method: str, endpoint: str, data: dict = None):
                 if method == 'GET':
                     return impl.get_timeoff_impl(emp_id)
                 elif method == 'POST':
-                    return impl.create_timeoff_impl(emp_id, data)
+                    return impl.create_timeoff_impl(emp_id, data or {})
             elif len(parts) == 4 and parts[3] == 'unavailable':  # /api/employees/{id}/unavailable
                 emp_id = int(parts[2])
                 if method == 'GET':
                     return impl.get_unavailable_impl(emp_id)
                 elif method == 'POST':
-                    return impl.create_unavailable_impl(emp_id, data)
-            elif len(parts) == 4 and parts[3] == 'locked_shifts':  # /api/employees/{id}/locked_shifts
+                    return impl.create_unavailable_impl(emp_id, data or {})
+            elif len(parts) == 4 and parts[3] == 'locked-shifts':  # /api/employees/{id}/locked_shifts
                 emp_id = int(parts[2])
                 if method == 'GET':
                     return impl.get_locked_shifts_impl(emp_id)
                 elif method == 'POST':
-                    return impl.create_locked_shift_impl(emp_id, data)
+                    return impl.create_locked_shift_impl(emp_id, data or {})
 
         # TIME-OFF
         elif endpoint.startswith('/api/timeoff/'):
@@ -79,21 +79,21 @@ def handle_request(method: str, endpoint: str, data: dict = None):
             if method == 'GET':
                 return impl.get_global_settings_impl()
             elif method == 'PUT':
-                return impl.update_global_settings_impl(data)
+                return impl.update_global_settings_impl(data or {})
         elif endpoint == '/api/settings/business_hours':
             if method == 'GET':
                 return impl.get_business_hours_impl()
             elif method == 'PUT':
-                return impl.update_business_hours_impl(data)
+                return impl.update_business_hours_impl(data if isinstance(data, list) else [])
 
         # STAFFING WINDOWS
         elif endpoint == '/api/staffing-windows':
             if method == 'GET':
                 return impl.get_staffing_windows_impl()
             elif method == 'POST':
-                return impl.create_staffing_window_impl(data)
+                return impl.create_staffing_window_impl(data or {})
             elif method == 'PUT':
-                return impl.update_staffing_windows_impl(data)
+                return impl.update_staffing_windows_impl(data if isinstance(data, list) else [])
         elif endpoint.startswith('/api/staffing-windows/'):
             window_id = int(parts[2])
             if method == 'DELETE':
@@ -134,9 +134,11 @@ def main():
 
     # Main loop: read requests from stdin, send responses to stdout
     for line in sys.stdin:
+        request = None
+        request_id = -1
         try:
             request = json.loads(line)
-            request_id = request.get('id')
+            request_id = request.get('id', -1)
             method = request.get('method')
             endpoint = request.get('endpoint')
             data = request.get('data')
@@ -152,9 +154,9 @@ def main():
             print(json.dumps(response), flush=True)
 
         except Exception as e:
-            # Send error response
+            # Send error response (use request_id from above if available)
             response = {
-                'id': request.get('id', -1) if 'request' in locals() else -1,
+                'id': request_id,
                 'error': str(e)
             }
             print(json.dumps(response), flush=True)

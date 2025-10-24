@@ -50,7 +50,7 @@ export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () 
       api.get('/api/employees/' + empId),
       api.get('/api/employees/' + empId + '/unavailable'),
       api.get('/api/employees/' + empId + '/timeoff'),
-      api.get('/api/employees/' + empId + '/locked_shifts')
+      api.get('/api/employees/' + empId + '/locked-shifts')
     ])
     if (e) setEmp(e)
     setUnavail(u)

@@ -4,7 +4,6 @@ All functions run without authentication (single-user mode)
 """
 from datetime import date
 from sqlmodel import Session, select
-from sqlalchemy import text
 from typing import Any, Iterable
 
 from .db import get_session
@@ -22,8 +21,10 @@ from .newSolver.core import generate_week_schedule
 def get_employees_impl():
     """Get all employees (single-user mode)"""
     with next(get_session()) as session:
-        employees = session.exec(select(Employee).order_by(Employee.id)).all()
-        return [EmployeeRead.model_validate(emp).model_dump(mode='json') for emp in employees]
+        employees = session.exec(select(Employee)).all()
+        # Sort by ID in Python (more compatible than order_by)
+        sorted_employees = sorted(employees, key=lambda e: e.id if e.id is not None else 0)
+        return [EmployeeRead.model_validate(emp).model_dump(mode='json') for emp in sorted_employees]
 
 
 def get_employee_impl(emp_id: int):
@@ -222,8 +223,10 @@ def update_global_settings_impl(data: dict):
 def get_business_hours_impl():
     """Get business hours for all days"""
     with next(get_session()) as session:
-        hrs = session.exec(select(BusinessHours).order_by(BusinessHours.weekday)).all()
-        return [BusinessHoursRead.model_validate(h).model_dump(mode='json') for h in hrs]
+        hrs = session.exec(select(BusinessHours)).all()
+        # Sort by weekday in Python
+        sorted_hrs = sorted(hrs, key=lambda h: h.weekday)
+        return [BusinessHoursRead.model_validate(h).model_dump(mode='json') for h in sorted_hrs]
 
 
 def update_business_hours_impl(data: list):
@@ -241,8 +244,10 @@ def update_business_hours_impl(data: list):
                 obj = BusinessHours.model_validate(BusinessHoursCreate(**item))
                 session.add(obj)
         session.commit()
-        hrs = session.exec(select(BusinessHours).order_by(BusinessHours.weekday)).all()
-        return [BusinessHoursRead.model_validate(h).model_dump(mode='json') for h in hrs]
+        hrs = session.exec(select(BusinessHours)).all()
+        # Sort by weekday in Python
+        sorted_hrs = sorted(hrs, key=lambda h: h.weekday)
+        return [BusinessHoursRead.model_validate(h).model_dump(mode='json') for h in sorted_hrs]
 
 
 # ===== STAFFING WINDOWS =====
@@ -277,9 +282,11 @@ def delete_staffing_window_impl(window_id: int):
 
 def update_staffing_windows_impl(data: list):
     """Update all staffing windows"""
+    from sqlalchemy import delete as sql_delete
+
     with next(get_session()) as session:
         # Delete all existing
-        session.exec(text(f"DELETE FROM {StaffingWindow.__tablename__}"))
+        session.exec(sql_delete(StaffingWindow))
         session.commit()
 
         # Add new ones
@@ -321,14 +328,16 @@ def generate_schedule_impl(data: dict | None):
 
 def reset_data_impl():
     """Reset all data (single-user mode)"""
+    from sqlalchemy import delete as sql_delete
+
     with next(get_session()) as session:
-        # Delete all data
-        session.exec(text(f"DELETE FROM {LockedShift.__tablename__}"))
-        session.exec(text(f"DELETE FROM {TimeOff.__tablename__}"))
-        session.exec(text(f"DELETE FROM {UnavailableBlock.__tablename__}"))
-        session.exec(text(f"DELETE FROM {Employee.__tablename__}"))
-        session.exec(text(f"DELETE FROM {GlobalSettings.__tablename__}"))
-        session.exec(text(f"DELETE FROM {StaffingWindow.__tablename__}"))
-        session.exec(text(f"DELETE FROM {BusinessHours.__tablename__}"))
+        # Delete all data using SQLAlchemy delete() instead of raw SQL
+        session.exec(sql_delete(LockedShift))
+        session.exec(sql_delete(TimeOff))
+        session.exec(sql_delete(UnavailableBlock))
+        session.exec(sql_delete(Employee))
+        session.exec(sql_delete(GlobalSettings))
+        session.exec(sql_delete(StaffingWindow))
+        session.exec(sql_delete(BusinessHours))
         session.commit()
         return {"ok": True}
