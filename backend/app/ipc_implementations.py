@@ -254,6 +254,27 @@ def get_staffing_windows_impl():
         return [StaffingWindowRead.model_validate(w).model_dump(mode='json') for w in windows]
 
 
+def create_staffing_window_impl(data: dict):
+    """Create a new staffing window"""
+    with next(get_session()) as session:
+        window = StaffingWindow.model_validate(StaffingWindowCreate(**data))
+        session.add(window)
+        session.commit()
+        session.refresh(window)
+        return StaffingWindowRead.model_validate(window).model_dump(mode='json')
+
+
+def delete_staffing_window_impl(window_id: int):
+    """Delete a staffing window"""
+    with next(get_session()) as session:
+        window = session.get(StaffingWindow, window_id)
+        if not window:
+            raise ValueError("Staffing window not found")
+        session.delete(window)
+        session.commit()
+        return {"ok": True}
+
+
 def update_staffing_windows_impl(data: list):
     """Update all staffing windows"""
     with next(get_session()) as session:
@@ -275,10 +296,24 @@ def update_staffing_windows_impl(data: list):
 
 def generate_schedule_impl(data: dict | None):
     """Generate schedule for a week"""
+    import sys
+    import json
+
+    def progress_callback(progress_data):
+        """Send progress updates to stdout for Electron to forward to renderer"""
+        event = {
+            'type': 'progress',
+            'event': progress_data
+        }
+        print(json.dumps(event), flush=True)
+
     with next(get_session()) as session:
         week_start_str = (data or {}).get("week_start")
         week_start = date.fromisoformat(week_start_str) if week_start_str else None
-        result = generate_week_schedule(session, week_start=week_start)
+
+        print(f"[SCHEDULE DEBUG] Received week_start_str='{week_start_str}', parsed={week_start}", file=sys.stderr)
+
+        result = generate_week_schedule(session, week_start=week_start, progress_callback=progress_callback)
         return result
 
 

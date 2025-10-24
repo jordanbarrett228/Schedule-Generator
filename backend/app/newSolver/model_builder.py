@@ -22,11 +22,18 @@ def build_cp_variables(
     Create Boolean vars X[(emp_id, day, slot)] for all available slots.
     Locked slots are fixed to 1; unavailable slots are constants 0.
     """
+    import sys
     X: Dict[Tuple[int, int, int], cp_model.IntVar] = {}
 
     for emp in employees:
         eid = int(emp.id) if emp.id is not None else -1
         for d, day in enumerate(week_grid):
+            # Debug for employee 1 on days 1 and 2
+            if eid == 1 and d in [1, 2]:
+                avail_day = mask_avail.get(eid, {}).get(d, [])
+                blocked = sum(1 for x in avail_day if x == 0)
+                print(f"[MODEL] Emp {eid} Day {d}: {blocked}/{len(avail_day)} slots blocked", file=sys.stderr)
+
             for i in range(len(day.slots)):
                 avail = mask_avail.get(eid, {}).get(d, [])
                 lock = mask_lock.get(eid, {}).get(d, [])

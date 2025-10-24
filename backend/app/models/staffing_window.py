@@ -4,15 +4,14 @@ import datetime as dt
 from sqlmodel import SQLModel, Field
 from sqlalchemy import Column
 from sqlalchemy.types import Time as SATime
-from .dbbase import DBBase
 
-class StaffingWindowBase(DBBase):
-    weekday: int  # 0=Mon .. 6=Sun
+class StaffingWindowBase(SQLModel):
+    weekday: int  # 0=Sun .. 6=Sat
     start_time: dt.time = Field(sa_column=Column(SATime))
     end_time: dt.time = Field(sa_column=Column(SATime))
-    # Soft preferred minimum coverage during this window
+    # Minimum staff target (heavily weighted soft constraint - solver will strongly try to meet this)
     min_staff: Optional[int] = None
-    # Hard cap during this window (<=)
+    # Maximum staff cap (hard constraint - solver cannot exceed this)
     max_staff: Optional[int] = None
     # If true, prefer fewer/longer shifts for this day (stronger start penalty)
     prefer_full_length: bool = False

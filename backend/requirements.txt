@@ -1,7 +1,0 @@
-fastapi
-uvicorn[standard]
-sqlmodel
-SQLAlchemy>=2.0
-pydantic-settings
-python-dotenv
-ortools>=9.10

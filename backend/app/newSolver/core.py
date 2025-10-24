@@ -4,7 +4,7 @@ import datetime as dt
 from ortools.sat.python import cp_model
 from sqlmodel import Session
 
-from app.newSolver.grid import build_week_grid, next_monday
+from app.newSolver.grid import build_week_grid, next_sunday
 from app.newSolver.data_loader import load_user_data
 from app.newSolver.masks import build_masks
 from app.newSolver.targets import compute_targets
@@ -21,7 +21,7 @@ from app.newSolver.diagnostics import _collect_pre_solve_diagnostics
 
 
 def generate_week_schedule(
-    session: Session, week_start: dt.date | None = None
+    session: Session, week_start: dt.date | None = None, progress_callback=None
 ) -> dict:
     """
     Main solver orchestrator for schedule generation.
@@ -34,8 +34,17 @@ def generate_week_schedule(
       5. Build OR-Tools model (variables + constraints + objective).
       6. Solve and postprocess into JSON-ready result.
     """
-    # 1) Establish week start
-    week_start = week_start or next_monday()
+    # 1) Establish week start - normalize to the Sunday of the week
+    import sys
+    original_week_start = week_start
+    if week_start:
+        # If user provides a date, normalize it to the Sunday of that week
+        week_start = next_sunday(week_start)
+    else:
+        # Default to the Sunday of the current week
+        week_start = next_sunday()
+
+    print(f"[CORE] Original week_start: {original_week_start}, Normalized: {week_start} (weekday={week_start.weekday()})", file=sys.stderr)
 
     # 2) Load all data
     data = load_user_data(session)
@@ -101,11 +110,37 @@ def generate_week_schedule(
     # 10) Objective function
     _aux = add_objective(model, X, data.employees, week_grid, under_staff, emp_week_sum)
 
-    # 11) Solve
+    # 11) Solve with progress tracking
     solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = 120 
+    solver.parameters.max_time_in_seconds = 30
     solver.parameters.num_search_workers = 8
-    status = solver.Solve(model)
+
+    # Progress callback to track solver progress
+    class ProgressCallback(cp_model.CpSolverSolutionCallback):
+        def __init__(self, progress_fn):
+            cp_model.CpSolverSolutionCallback.__init__(self)
+            self.solution_count = 0
+            self.progress_fn = progress_fn
+            self.start_time = None
+
+        def on_solution_callback(self):
+            import time
+            if self.start_time is None:
+                self.start_time = time.time()
+
+            self.solution_count += 1
+            elapsed = time.time() - self.start_time
+
+            if self.progress_fn:
+                self.progress_fn({
+                    'type': 'solution_found',
+                    'count': self.solution_count,
+                    'elapsed': round(elapsed, 1),
+                    'objective': self.ObjectiveValue()
+                })
+
+    callback = ProgressCallback(progress_callback) if progress_callback else None
+    status = solver.Solve(model, callback) if callback else solver.Solve(model)
 
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         # Try relaxation: remove minimum hours constraint
@@ -142,7 +177,7 @@ def generate_week_schedule(
 
         # Solve relaxed model
         solver_relaxed = cp_model.CpSolver()
-        solver_relaxed.parameters.max_time_in_seconds = 120
+        solver_relaxed.parameters.max_time_in_seconds = 30
         solver_relaxed.parameters.num_search_workers = 8
         status_relaxed = solver_relaxed.Solve(model_relaxed)
 

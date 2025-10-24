@@ -2,19 +2,19 @@ import { hhmmToMin, format12 } from '../lib/time'
 
 type DayShift = {
   employee_name: string
-  weekday: number     // 0=Mon .. 6=Sun
+  weekday: number     // 0=Sun .. 6=Sat
   weekday_name: string
   start: string       // "HH:MM"
   end: string         // "HH:MM"
 }
 
 export function DaySchedule({ shifts, weekStart }: { shifts: DayShift[], weekStart?: string }) {
-  // Labels by internal weekday indexing (0=Mon..6=Sun)
+  // Labels by grid indexing (0=Sun..6=Sat) - matches backend's WEEKDAYS array
   const labels: Record<number, string> = {
-    0:'Mon', 1:'Tue', 2:'Wed', 3:'Thu', 4:'Fri', 5:'Sat', 6:'Sun'
+    0:'Sun', 1:'Mon', 2:'Tue', 3:'Wed', 4:'Thu', 5:'Fri', 6:'Sat'
   }
-  // Display order: Sunday first, then Mon..Sat
-  const order: number[] = [6, 0, 1, 2, 3, 4, 5]
+  // Display order: Sunday first (0), then Mon..Sat (1..6)
+  const order: number[] = [0, 1, 2, 3, 4, 5, 6]
 
   // Group by weekday
   const byDay: Record<number, DayShift[]> = { 0:[],1:[],2:[],3:[],4:[],5:[],6:[] }
@@ -38,21 +38,17 @@ export function DaySchedule({ shifts, weekStart }: { shifts: DayShift[], weekSta
     const yyyy = dt.getFullYear()
     return `${mm}/${dd}/${yyyy}`
   }
-  // Given any date, get the Sunday of that week (local). JS Date.getDay(): Sun=0..Sat=6.
-  const startDate = weekStart ? parseYmdLocal(weekStart) : null
-  const sundayBase: Date | null = startDate
-    ? new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() - startDate.getDay())
-    : null
+  
+  // week_start from backend is already the Sunday of the week (0=Sun in our system)
+  const sundayBase: Date | null = weekStart ? parseYmdLocal(weekStart) : null
 
-  // Our internal weekday indexing is Mon=0..Sun=6.
-  // Map that to an offset from Sunday (Sun=0..Sat=6).
-  const offsetFromSunday = (weekdayMon0: number): number => (weekdayMon0 === 6 ? 0 : weekdayMon0 + 1)
-
-  const dateForWeekday = (weekdayMon0: number): string | null => {
+  // Our grid indexing is Sun=0..Sat=6, so add the weekday index as days offset from Sunday
+  const dateForWeekday = (weekdayGridIndex: number): string | null => {
     if (!sundayBase) return null
-    const off = offsetFromSunday(weekdayMon0)
-    const d = new Date(sundayBase.getFullYear(), sundayBase.getMonth(), sundayBase.getDate() + off)
-    return formatMDY(d)
+    // Create a new date by adding days to the Sunday base
+    const targetDate = new Date(sundayBase)
+    targetDate.setDate(sundayBase.getDate() + weekdayGridIndex)
+    return formatMDY(targetDate)
   }
 
   return (

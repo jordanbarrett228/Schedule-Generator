@@ -56,6 +56,8 @@ function formatDate_mmddyyyy(iso: string) {
 export default function DashboardView() {
   const [weekStart, setWeekStart] = useState<string>('')
   const [result, setResult] = useState<ScheduleResult | null>(null)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [progress, setProgress] = useState({ count: 0, elapsed: 0 })
 
   // Restore last generated schedule on mount
   useEffect(() => {
@@ -72,17 +74,44 @@ export default function DashboardView() {
     }
   }, [])
 
-  const generate = async () => {
-    const body = weekStart ? { week_start: weekStart } : {}
-    const json: ScheduleResult = await api.post('/api/schedule/generate', body)
-    setResult(json)
+  // Subscribe to solver progress events
+  useEffect(() => {
+    const handleProgress = (data: any) => {
+      if (data.type === 'solution_found') {
+        setProgress({ count: data.count, elapsed: data.elapsed })
+      }
+    }
 
-    // Persist to localStorage so it survives route changes/page reloads
+    if (window.electron?.onSolverProgress) {
+      window.electron.onSolverProgress(handleProgress)
+    }
+
+    return () => {
+      if (window.electron?.offSolverProgress) {
+        window.electron.offSolverProgress(handleProgress)
+      }
+    }
+  }, [])
+
+  const generate = async () => {
+    setIsGenerating(true)
+    setProgress({ count: 0, elapsed: 0 })
+
     try {
-      localStorage.setItem(LS_KEY_RESULT, JSON.stringify(json))
-      if (weekStart) localStorage.setItem(LS_KEY_WEEK, weekStart)
-    } catch {
-      // storage may be unavailable; fail silently
+      const body = weekStart ? { week_start: weekStart } : {}
+      const json: ScheduleResult = await api.post('/api/schedule/generate', body)
+      setResult(json)
+
+      // Persist to localStorage so it survives route changes/page reloads
+      try {
+        localStorage.setItem(LS_KEY_RESULT, JSON.stringify(json))
+        if (weekStart) localStorage.setItem(LS_KEY_WEEK, weekStart)
+      } catch {
+        // storage may be unavailable; fail silently
+      }
+    } finally {
+      setIsGenerating(false)
+      setProgress({ count: 0, elapsed: 0 })
     }
   }
 
@@ -112,9 +141,8 @@ export default function DashboardView() {
     }
 
     // 2) Turn week_start + weekday into actual dates
-    //    result.week_start is ISO "YYYY-MM-DD" (Monday)
-    const base = new Date(result.week_start + 'T00:00:00')  // local
-    const y = base.getFullYear(), m = base.getMonth(), d = base.getDate()
+    //    result.week_start is ISO "YYYY-MM-DD" (Sunday - backend guarantees this)
+    const sundayBase = new Date(result.week_start + 'T00:00:00')  // local
 
     // 3) CSV header
     const rows: string[][] = [
@@ -122,9 +150,11 @@ export default function DashboardView() {
     ]
 
     // 4) Fill rows
-    // WhenToWork expects: Date = dd/mm/yyyy; times as "hh:mm am/pm"
+    // WhenToWork expects: Date = mm/dd/yyyy; times as "hh:mm am/pm"
     for (const s of result.shifts) {
-      const dayDate = new Date(y, m, d + s.weekday)
+      // Add weekday offset (0=Sun..6=Sat) to Sunday base using proper date arithmetic
+      const dayDate = new Date(sundayBase)
+      dayDate.setDate(sundayBase.getDate() + s.weekday)
       const dateStr = formatDate_mmddyyyy(dayDate.toISOString().slice(0,10))
       const begin = format12(s.start)  // your helper returns "h:mm AM/PM"
       const end   = format12(s.end)
@@ -163,12 +193,48 @@ export default function DashboardView() {
             type="date"
             value={weekStart}
             onChange={(e) => setWeekStart(e.target.value)}
+            disabled={isGenerating}
           />
         </label>
-        <button className="button primary" onClick={generate}>Generate Week</button>
-        <button className="button" onClick={clearSaved}>Clear</button>
-        <button className="button" onClick={exportWhenToWork} disabled={!result || result.shifts.length === 0}>Export WhenToWork CSV</button>
+        <button className="button primary" onClick={generate} disabled={isGenerating}>
+          {isGenerating ? 'Generating...' : 'Generate Week'}
+        </button>
+        <button className="button" onClick={clearSaved} disabled={isGenerating}>Clear</button>
+        <button className="button" onClick={exportWhenToWork} disabled={!result || result.shifts.length === 0 || isGenerating}>Export WhenToWork CSV</button>
       </div>
+
+      {/* Progress Bar */}
+      {isGenerating && (
+        <div className="panel" style={{ marginBottom: 12, padding: 16 }}>
+          <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <strong>Optimizing schedule...</strong>
+            <span style={{ fontSize: '0.9em', color: '#666' }}>
+              {progress.count > 0 ? `${progress.count} solution${progress.count > 1 ? 's' : ''} found (${progress.elapsed}s)` : 'Starting...'}
+            </span>
+          </div>
+          <div style={{
+            width: '100%',
+            height: 8,
+            backgroundColor: '#e5e7eb',
+            borderRadius: 4,
+            overflow: 'hidden',
+            position: 'relative'
+          }}>
+            <div style={{
+              height: '100%',
+              backgroundColor: '#3b82f6',
+              animation: 'progress-slide 2s ease-in-out infinite',
+              width: '30%',
+            }} />
+          </div>
+          <style>{`
+            @keyframes progress-slide {
+              0% { transform: translateX(-100%); }
+              100% { transform: translateX(400%); }
+            }
+          `}</style>
+        </div>
+      )}
 
       {/* Diagnostics */}
       {result?.diagnostics && result.diagnostics.length > 0 && (

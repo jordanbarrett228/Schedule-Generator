@@ -5,6 +5,8 @@ declare global {
   interface Window {
     electron?: {
       invoke: (method: string, endpoint: string, data?: any) => Promise<any>;
+      onSolverProgress: (callback: (data: any) => void) => void;
+      offSolverProgress: (callback: (data: any) => void) => void;
     };
   }
 }
@@ -27,34 +29,6 @@ export async function apiRequest(
     } catch (error: any) {
       throw new Error(error.message || 'API request failed');
     }
-  } else {
-    // Fall back to HTTP (for development)
-    const baseURL = 'http://localhost:8000';
-    const url = baseURL + endpoint;
-
-    const options: RequestInit = {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    };
-
-    if (data && (method === 'POST' || method === 'PUT')) {
-      options.body = JSON.stringify(data);
-    }
-
-    const response = await fetch(url, options);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(errorText || `HTTP ${response.status}`);
-    }
-
-    if (response.status === 204 || response.headers.get('content-length') === '0') {
-      return null;
-    }
-
-    return await response.json();
   }
 }
 

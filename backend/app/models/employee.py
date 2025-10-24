@@ -3,9 +3,8 @@ import datetime as dt
 from sqlalchemy import Column
 from sqlalchemy.types import Time as SATime
 from sqlmodel import Field, SQLModel
-from .dbbase import DBBase
 
-class EmployeeBase(DBBase):
+class EmployeeBase(SQLModel):
     name: str
     active: bool = True  # treat as "include in generation" toggle for now
 
@@ -41,7 +40,7 @@ class EmployeeCreate(EmployeeBase):
 class EmployeeRead(EmployeeBase):
     id: int
 
-class EmployeeUpdate(DBBase):
+class EmployeeUpdate(SQLModel):
     name: Optional[str] = None
     active: Optional[bool] = None
     min_hours_week: Optional[float] = None

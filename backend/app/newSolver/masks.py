@@ -37,6 +37,7 @@ def build_masks(
         avail[eid][d][i] = 1 if employee available at slot i of day d
         lock[eid][d][i]  = 1 if employee must work (locked shift)
     """
+
     mask_avail: Dict[int, Dict[int, List[int]]] = {}
     mask_lock: Dict[int, Dict[int, List[int]]] = {}
     avail_map: Dict[Tuple[int, int], List[int]] = {}
@@ -44,6 +45,10 @@ def build_masks(
 
     for d, day in enumerate(week_grid):
         date_d = week_start + dt.timedelta(days=d)
+
+        import sys
+        if d == 0 or d == 1:
+            print(f"[MASKS] Grid day {d}: date={date_d}, weekday={date_d.weekday()}", file=sys.stderr)
 
         for emp in employees:
             eid = int(emp.id) if emp.id is not None else -1
@@ -55,6 +60,7 @@ def build_masks(
 
             # --- Weekly Unavailability ---
             for ub in emp_unavail.get(eid, []):
+                # DB weekday matches grid index (both 0=Sun..6=Sat)
                 if ub.weekday != d:
                     continue
                 s = time_to_min(ub.start_time)
@@ -65,8 +71,14 @@ def build_masks(
 
             # --- Time Off (date-specific) ---
             for to in emp_timeoff.get(eid, []):
+                if eid == 1 and d <= 2:  # Debug first employee first 3 days
+                    print(f"[MASKS] Emp {eid} Day {d} ({date_d}): Checking timeoff {to.date} (match={to.date == date_d})", file=sys.stderr)
+
                 if to.date != date_d:
                     continue
+
+                print(f"[MASKS] Emp {eid} Day {d}: TIME OFF MATCHED for {date_d}", file=sys.stderr)
+
                 if to.all_day or (to.start_time is None and to.end_time is None):
                     to_mask = [1] * n_slots
                 else:
@@ -83,6 +95,7 @@ def build_masks(
 
             # --- Locked shifts (hard overrides for scheduling) ---
             for ls in emp_locked.get(eid, []):
+                # DB weekday matches grid index (both 0=Sun..6=Sat)
                 if ls.weekday != d:
                     continue
                 s = time_to_min(ls.start_time)

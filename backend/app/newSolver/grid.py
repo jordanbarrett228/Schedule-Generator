@@ -9,7 +9,7 @@ from app.models.settings import BusinessHours
 # ---- Slot constants (shared by solver pipeline) ----
 SLOT_MIN = 15  # minutes between adjacent decision slots
 SLOTS_PER_HOUR = 60 // SLOT_MIN
-WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
 
 @dataclass(frozen=True)
@@ -20,7 +20,7 @@ class DayGrid:
     Attributes
     ----------
     weekday : int
-        0..6 (Mon..Sun)
+        0..6 (Sun..Sat)
     open_min : int
         Opening time in absolute minutes from 00:00 (e.g., 04:45 -> 285).
     close_min : int
@@ -50,16 +50,47 @@ def hhmm_to_min(s: str) -> int:
     return int(h) * 60 + int(m)
 
 
-def next_monday(today: dt.date | None = None) -> dt.date:
-    """Return the date of the next Monday (or today if already Monday)."""
+def next_sunday(today: dt.date | None = None) -> dt.date:
+    """
+    Return the Sunday that starts the week containing 'today'.
+
+    If today is Sunday, returns today.
+    If today is Monday-Saturday, returns the previous Sunday.
+
+    Examples:
+        - Sunday 10/26 → Sunday 10/26
+        - Monday 10/27 → Sunday 10/26
+        - Saturday 11/1 → Sunday 10/26
+    """
     today = today or dt.date.today()
-    return today + dt.timedelta(days=(7 - today.weekday()) % 7)
+    # Python weekday: 0=Mon, 1=Tue, ..., 6=Sun
+    # We want to find the Sunday at the start of this week
+    weekday = today.weekday()
+
+    if weekday == 6:  # Already Sunday
+        return today
+    else:
+        # Go back to the previous Sunday
+        # Monday (0) -> go back 1 day
+        # Tuesday (1) -> go back 2 days
+        # ...
+        # Saturday (5) -> go back 6 days
+        days_since_sunday = weekday + 1
+        return today - dt.timedelta(days=days_since_sunday)
+
+# Kept for backwards compatibility, but now returns next Sunday
+def next_monday(today: dt.date | None = None) -> dt.date:
+    """DEPRECATED: Use next_sunday(). Returns next Sunday for compatibility."""
+    return next_sunday(today)
 
 
 # ---- Week grid builder ----
 def build_week_grid(session: Session) -> List[DayGrid]:
     """
-    Build 7 DayGrid objects (Mon..Sun) based on BusinessHours.
+    Build 7 DayGrid objects (Sun..Sat) based on BusinessHours.
+
+    NOTE: Database stores weekdays as 0=Sun..6=Sat
+          Grid returns [Sun, Mon, Tue, Wed, Thu, Fri, Sat] matching database order
 
     Rules/Notes
     ----------
@@ -68,15 +99,16 @@ def build_week_grid(session: Session) -> List[DayGrid]:
       This matches post-processing that adds SLOT_MIN to the last '1' to compute an end time.
     """
     rows = session.exec(select(BusinessHours)).all()
-
     by_day = {r.weekday: r for r in rows}
+
     grid: List[DayGrid] = []
 
-    for d in range(7):
-        row = by_day.get(d)
+    for weekday in range(7):
+        row = by_day.get(weekday)
+
         if not row:
             # No hours configured -> closed
-            grid.append(DayGrid(d, 0, 0, []))
+            grid.append(DayGrid(weekday, 0, 0, []))
             continue
 
         open_m = time_to_min(row.open_time)
@@ -84,10 +116,10 @@ def build_week_grid(session: Session) -> List[DayGrid]:
 
         # Guard against bad configs (e.g., close <= open) -> treat as closed
         if close_m <= open_m:
-            grid.append(DayGrid(d, open_m, close_m, []))
+            grid.append(DayGrid(weekday, open_m, close_m, []))
             continue
 
         slots = list(range(open_m, close_m, SLOT_MIN))
-        grid.append(DayGrid(d, open_m, close_m, slots))
+        grid.append(DayGrid(weekday, open_m, close_m, slots))
 
     return grid

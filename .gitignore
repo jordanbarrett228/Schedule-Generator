@@ -1,11 +1,29 @@
+# Python virtual environments
 /.venv
 backend/.venv
+
+# Node modules
 node_modules
+
+# Build outputs (should be generated, not committed)
 /dist
+/dist-electron
 /build
+frontend/dist
+backend/build
+backend/dist
+
+# Environment files
 .env
+
+# Python
 *.pyc
 __pycache__/
+
+# IDEs
 .vscode/
 .DS_Store
 /.idea
+
+# OS files
+Thumbs.db

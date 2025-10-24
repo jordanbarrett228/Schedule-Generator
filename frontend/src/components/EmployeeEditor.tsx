@@ -35,7 +35,7 @@ export type TimeOff = {
 }
 export type LockedShift = { id: number; employee_id: number; weekday: number; start_time: string; end_time: string; note?: string }
 
-const weekdays = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+const weekdays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
 export function EmployeeEditor({ empId, onClose }: { empId: number, onClose: () => void }) {
   const [emp, setEmp] = useState<Employee | null>(null)
@@ -516,7 +516,7 @@ function LockedEditor({
     <div className="grid" style={{gap:8}}>
       <div className="row" style={{gap:8, flexWrap:'wrap'}}>
         <select value={weekday} onChange={e=>setWeekday(+e.target.value)}>
-          {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((w,i)=>(<option key={i} value={i}>{w}</option>))}
+          {weekdays.map((w,i)=>(<option key={i} value={i}>{w}</option>))}
         </select>
         <input className="input" type="time" value={start} onChange={e=>setStart(e.target.value)} />
         <input className="input" type="time" value={end} onChange={e=>setEnd(e.target.value)} />
@@ -553,7 +553,7 @@ function LockedEditor({
                 <tr key={r.id}>
                   <td style={tdDayStyle}>
                     <select style={selectFull} value={editDay} onChange={e=>setEditDay(+e.target.value)}>
-                      {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((w,i)=>(<option key={i} value={i}>{w}</option>))}
+                      {weekdays.map((w,i)=>(<option key={i} value={i}>{w}</option>))}
                     </select>
                   </td>
                   <td style={tdTimeStyle}>
@@ -579,7 +579,7 @@ function LockedEditor({
             const lenHrs = durHours(r.start_time, r.end_time).toFixed(2)
             return (
               <tr key={r.id}>
-                <td style={tdDayStyle}>{['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][r.weekday]}</td>
+                <td style={tdDayStyle}>{weekdays[r.weekday]}</td>
                 <td style={tdTimeStyle}>
                   {format12(r.start_time)} – {format12(r.end_time)}{' '}
                   <span className="muted">({lenHrs} h)</span>

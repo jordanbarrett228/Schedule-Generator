@@ -6,7 +6,10 @@
   "type": "commonjs",
   "scripts": {
     "start": "electron .",
-    "dev": "electron . --dev",
+    "dev": "concurrently \"npm run dev:vite\" \"npm run dev:electron\"",
+    "dev:vite": "cd frontend && npm run build -- --watch",
+    "dev:electron": "wait-on frontend/dist/index.html && nodemon --watch frontend/dist --watch electron --exec \"electron . --dev\"",
+    "dev:watch": "cd frontend && npm run build -- --watch",
     "build:frontend": "cd frontend && npm run build",
     "build:python": "cd backend && pyinstaller --clean run_app.spec",
     "build": "npm run build:frontend && electron-builder",
@@ -50,7 +53,10 @@
   },
   "dependencies": {},
   "devDependencies": {
+    "concurrently": "^8.2.2",
     "electron": "^28.0.0",
-    "electron-builder": "^24.9.1"
+    "electron-builder": "^24.9.1",
+    "nodemon": "^3.0.2",
+    "wait-on": "^7.2.0"
   }
 }

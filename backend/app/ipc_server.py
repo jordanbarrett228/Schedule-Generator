@@ -90,8 +90,14 @@ def handle_request(method: str, endpoint: str, data: dict = None):
         elif endpoint == '/api/staffing-windows':
             if method == 'GET':
                 return impl.get_staffing_windows_impl()
+            elif method == 'POST':
+                return impl.create_staffing_window_impl(data)
             elif method == 'PUT':
                 return impl.update_staffing_windows_impl(data)
+        elif endpoint.startswith('/api/staffing-windows/'):
+            window_id = int(parts[2])
+            if method == 'DELETE':
+                return impl.delete_staffing_window_impl(window_id)
 
         # SCHEDULE
         elif endpoint == '/api/schedule/generate':

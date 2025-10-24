@@ -54,7 +54,7 @@ function startPythonBackend() {
 
   pythonProcess = spawn(pythonCmd, pythonArgs, spawnOptions);
 
-  // Handle Python stdout (responses)
+  // Handle Python stdout (responses and events)
   pythonProcess.stdout.on('data', (data) => {
     const lines = data.toString().split('\n');
 
@@ -64,7 +64,15 @@ function startPythonBackend() {
       try {
         const response = JSON.parse(line);
 
-        if (response.id !== undefined && pendingRequests.has(response.id)) {
+        // Check if this is a progress event (no id field)
+        if (response.type === 'progress' && response.event) {
+          // Forward progress event to renderer
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('solver-progress', response.event);
+          }
+        }
+        // Regular request/response
+        else if (response.id !== undefined && pendingRequests.has(response.id)) {
           const { resolve, reject } = pendingRequests.get(response.id);
           pendingRequests.delete(response.id);
 
@@ -155,19 +163,19 @@ function createWindow() {
   });
 }
 
-// IPC handlers - must be registered before app.ready but after module load
-ipcMain.handle('api-request', async (event, { method, endpoint, data }) => {
-  try {
-    const result = await sendToPython(method, endpoint, data);
-    return { success: true, data: result };
-  } catch (error) {
-    console.error('API request failed:', error);
-    return { success: false, error: error.message };
-  }
-});
-
 // App lifecycle
-app.whenReady().then(() => {
+app.on('ready', () => {
+  // IPC handlers for all API endpoints (must be registered after app is ready)
+  ipcMain.handle('api-request', async (event, { method, endpoint, data }) => {
+    try {
+      const result = await sendToPython(method, endpoint, data);
+      return { success: true, data: result };
+    } catch (error) {
+      console.error('API request failed:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   startPythonBackend();
 
   // Give Python a moment to start up

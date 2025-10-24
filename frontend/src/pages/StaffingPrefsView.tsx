@@ -22,15 +22,16 @@ type GlobalSettings = {
   coordinator_open_window_minutes: number
 }
 
-const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+// IMPORTANT: Solver uses 0=Sun, 1=Mon, ..., 6=Sat
+const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const dayKeyOrder: (keyof GlobalSettings)[] = [
+  'coordinator_opening_sun',
   'coordinator_opening_mon',
   'coordinator_opening_tue',
   'coordinator_opening_wed',
   'coordinator_opening_thu',
   'coordinator_opening_fri',
   'coordinator_opening_sat',
-  'coordinator_opening_sun',
 ]
 function openingKey(idx: number): keyof GlobalSettings {
   return dayKeyOrder[idx]
@@ -83,7 +84,7 @@ export default function StaffingPrefsView() {
 
   const quickWeekdayCapBefore = async () => {
     // Creates windows Mon..Fri 00:00–07:00 with max_staff=2
-    for (let d = 0; d <= 4; d++) {
+    for (let d = 1; d <= 5; d++) {
       const payload = {
         weekday: d,
         start_time: '00:00',

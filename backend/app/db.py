@@ -39,10 +39,9 @@ def set_data_directory(data_dir: str):
     )
 
 def init_db() -> None:
-    from .models.dbbase import schedulemetadata
     from .models.settings import GlobalSettings, BusinessHours
-
-    schedulemetadata.create_all(engine)
+    
+    SQLModel.metadata.create_all(engine)
 
     # Initialize default business hours for single-user mode
     with Session(engine) as session:
@@ -51,13 +50,13 @@ def init_db() -> None:
         if not existing_hours:
             # Create default business hours
             defaults = {
-                0: (time(4,45), time(21,15)),  # Mon
-                1: (time(4,45), time(21,15)),  # Tue
-                2: (time(4,45), time(21,15)),  # Wed
-                3: (time(4,45), time(21,15)),  # Thu
-                4: (time(4,45), time(21,15)),  # Fri
-                5: (time(5,45), time(21,15)),  # Sat
-                6: (time(11,45), time(18,15)), # Sun
+                0: (time(11,45), time(18,15)), # Sun
+                1: (time(4,45), time(21,15)),  # Mon
+                2: (time(4,45), time(21,15)),  # Tue
+                3: (time(4,45), time(21,15)),  # Wed
+                4: (time(4,45), time(21,15)),  # Thu
+                5: (time(4,45), time(21,15)),  # Fri
+                6: (time(5,45), time(21,15)),  # Sat
             }
             for weekday, (open_time, close_time) in defaults.items():
                 session.add(BusinessHours(weekday=weekday, open_time=open_time, close_time=close_time))

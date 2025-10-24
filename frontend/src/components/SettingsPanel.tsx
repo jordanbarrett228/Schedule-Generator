@@ -13,7 +13,7 @@ export type BusinessHours = {
   close_time: string
 }
 
-const weekdays = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+const weekdays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
 export function SettingsPanel() {
   const [gs, setGs] = useState<GlobalSettings | null>(null)

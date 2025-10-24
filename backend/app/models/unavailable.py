@@ -5,11 +5,10 @@ import datetime as dt
 from sqlmodel import SQLModel, Field
 from sqlalchemy import Column
 from sqlalchemy.types import Time as SATime
-from .dbbase import DBBase
 
-class UnavailableBlockBase(DBBase):
+class UnavailableBlockBase(SQLModel):
     employee_id: int = Field(foreign_key="employee.id")
-    weekday: int  # 0=Mon .. 6=Sun
+    weekday: int  # 0=Sun .. 6=Sat
     start_time: dt.time = Field(sa_column=Column(SATime))
     end_time: dt.time = Field(sa_column=Column(SATime))
 
