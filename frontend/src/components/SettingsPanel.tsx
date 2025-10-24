@@ -79,16 +79,11 @@ const onRestoreFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     )
     if (!ok) return
     const res = await api.post('/api/admin/restore', payload)
-    if (!res.ok) {
-      const t = await res.text()
-      alert(`Restore failed: ${t || res.statusText}`)
-      return
-    }
-    alert('Restore complete.')
-    // optional: refresh the page or refetch settings/employees here
-    // location.reload()
-  } catch (err) {
-    alert('Invalid or unreadable backup file.')
+    alert(res.message || 'Restore complete.')
+    // Reload to reflect restored data
+    location.reload()
+  } catch (err: any) {
+    alert(`Restore failed: ${err.message || 'Invalid or unreadable backup file.'}`)
     console.error(err)
   } finally {
     // reset the file input so choosing the same file again will fire onChange

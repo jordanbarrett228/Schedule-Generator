@@ -162,6 +162,12 @@ def handle_request(method: str, endpoint: str, data: dict | None = None):
                         return {"status": "no_result"}
 
         # ADMIN
+        elif endpoint == '/api/admin/backup':
+            if method == 'GET':
+                return impl.backup_data_impl()
+        elif endpoint == '/api/admin/restore':
+            if method == 'POST':
+                return impl.restore_data_impl(data or {})
         elif endpoint == '/api/admin/reset':
             if method == 'POST':
                 return impl.reset_data_impl()

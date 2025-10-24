@@ -326,6 +326,102 @@ def generate_schedule_impl(data: dict | None):
 
 # ===== ADMIN =====
 
+def backup_data_impl():
+    """Export all data to JSON for backup"""
+    with next(get_session()) as session:
+        # Export all data
+        backup = {
+            "version": 1,
+            "employees": [EmployeeRead.model_validate(e).model_dump(mode='json') for e in session.exec(select(Employee)).all()],
+            "timeoff": [TimeOffRead.model_validate(t).model_dump(mode='json') for t in session.exec(select(TimeOff)).all()],
+            "unavailable": [UnavailableBlockRead.model_validate(u).model_dump(mode='json') for u in session.exec(select(UnavailableBlock)).all()],
+            "locked_shifts": [LockedShiftRead.model_validate(l).model_dump(mode='json') for l in session.exec(select(LockedShift)).all()],
+            "global_settings": session.exec(select(GlobalSettings)).first().model_dump(mode='json') if session.exec(select(GlobalSettings)).first() else None,
+            "business_hours": [BusinessHoursRead.model_validate(h).model_dump(mode='json') for h in session.exec(select(BusinessHours)).all()],
+            "staffing_windows": [StaffingWindowRead.model_validate(w).model_dump(mode='json') for w in session.exec(select(StaffingWindow)).all()],
+        }
+        return backup
+
+
+def restore_data_impl(data: dict):
+    """Restore data from JSON backup"""
+    from sqlalchemy import delete as sql_delete
+
+    with next(get_session()) as session:
+        # Clear existing data
+        session.exec(sql_delete(LockedShift))
+        session.exec(sql_delete(TimeOff))
+        session.exec(sql_delete(UnavailableBlock))
+        session.exec(sql_delete(Employee))
+        session.exec(sql_delete(GlobalSettings))
+        session.exec(sql_delete(StaffingWindow))
+        session.exec(sql_delete(BusinessHours))
+        session.commit()
+
+        # Restore employees
+        for emp_data in data.get("employees", []):
+            # Remove id to let DB auto-generate
+            emp_dict = {k: v for k, v in emp_data.items() if k != 'id'}
+            emp = Employee.model_validate(EmployeeCreate(**emp_dict))
+            session.add(emp)
+        session.commit()
+
+        # Build ID mapping (old_id -> new_id)
+        old_to_new_emp_id = {}
+        for idx, old_emp in enumerate(data.get("employees", [])):
+            new_emp = session.exec(select(Employee)).all()[idx]
+            old_to_new_emp_id[old_emp['id']] = new_emp.id
+
+        # Restore time-off (with updated employee_id)
+        for timeoff_data in data.get("timeoff", []):
+            timeoff_dict = {k: v for k, v in timeoff_data.items() if k != 'id'}
+            if timeoff_dict['employee_id'] in old_to_new_emp_id:
+                timeoff_dict['employee_id'] = old_to_new_emp_id[timeoff_dict['employee_id']]
+                timeoff = TimeOff.model_validate(TimeOffCreate(**timeoff_dict))
+                session.add(timeoff)
+        session.commit()
+
+        # Restore unavailable blocks (with updated employee_id)
+        for unavail_data in data.get("unavailable", []):
+            unavail_dict = {k: v for k, v in unavail_data.items() if k != 'id'}
+            if unavail_dict['employee_id'] in old_to_new_emp_id:
+                unavail_dict['employee_id'] = old_to_new_emp_id[unavail_dict['employee_id']]
+                unavail = UnavailableBlock.model_validate(UnavailableBlockCreate(**unavail_dict))
+                session.add(unavail)
+        session.commit()
+
+        # Restore locked shifts (with updated employee_id)
+        for locked_data in data.get("locked_shifts", []):
+            locked_dict = {k: v for k, v in locked_data.items() if k != 'id'}
+            if locked_dict['employee_id'] in old_to_new_emp_id:
+                locked_dict['employee_id'] = old_to_new_emp_id[locked_dict['employee_id']]
+                locked = LockedShift.model_validate(LockedShiftCreate(**locked_dict))
+                session.add(locked)
+        session.commit()
+
+        # Restore global settings
+        if data.get("global_settings"):
+            gs = GlobalSettings.model_validate(data["global_settings"])
+            session.add(gs)
+            session.commit()
+
+        # Restore business hours
+        for bh_data in data.get("business_hours", []):
+            bh_dict = {k: v for k, v in bh_data.items() if k != 'id'}
+            bh = BusinessHours.model_validate(BusinessHoursCreate(**bh_dict))
+            session.add(bh)
+        session.commit()
+
+        # Restore staffing windows
+        for sw_data in data.get("staffing_windows", []):
+            sw_dict = {k: v for k, v in sw_data.items() if k != 'id'}
+            sw = StaffingWindow.model_validate(StaffingWindowCreate(**sw_dict))
+            session.add(sw)
+        session.commit()
+
+        return {"ok": True, "message": "Data restored successfully"}
+
+
 def reset_data_impl():
     """Reset all data (single-user mode)"""
     from sqlalchemy import delete as sql_delete
