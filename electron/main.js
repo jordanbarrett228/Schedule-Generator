@@ -64,11 +64,17 @@ function startPythonBackend() {
       try {
         const response = JSON.parse(line);
 
-        // Check if this is a progress event (no id field)
+        // Check if this is an event (no id field)
         if (response.type === 'progress' && response.event) {
           // Forward progress event to renderer
           if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('solver-progress', response.event);
+          }
+        }
+        else if (response.type === 'solver_complete' && response.event) {
+          // Forward completion event to renderer
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('solver-complete', response.event);
           }
         }
         // Regular request/response

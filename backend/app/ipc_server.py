@@ -6,10 +6,44 @@ No authentication - single-user mode
 import sys
 import json
 import argparse
+import threading
 from pathlib import Path
 
 from .db import init_db, set_data_directory
 from . import ipc_implementations as impl
+
+# Track active background tasks
+active_tasks = {}
+task_results = {}
+task_lock = threading.Lock()
+
+
+def run_solver_background(data):
+    """Run the solver in a background thread"""
+    try:
+        with task_lock:
+            active_tasks['solver'] = True
+
+        result = impl.generate_schedule_impl(data)
+
+        with task_lock:
+            task_results['solver'] = result
+            if 'solver' in active_tasks:
+                del active_tasks['solver']
+
+        # Send completion event
+        completion_event = {
+            'type': 'solver_complete',
+            'event': {'status': 'complete'}
+        }
+        print(json.dumps(completion_event), flush=True)
+    except Exception as e:
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        with task_lock:
+            task_results['solver'] = {'status': 'error', 'error': str(e)}
+            if 'solver' in active_tasks:
+                del active_tasks['solver']
 
 
 def handle_request(method: str, endpoint: str, data: dict | None = None):
@@ -102,7 +136,30 @@ def handle_request(method: str, endpoint: str, data: dict | None = None):
         # SCHEDULE
         elif endpoint == '/api/schedule/generate':
             if method == 'POST':
-                return impl.generate_schedule_impl(data)
+                # Launch solver in background thread
+                with task_lock:
+                    if 'solver' in active_tasks:
+                        return {"status": "error", "message": "Solver already running"}
+                    # Clear previous result
+                    if 'solver' in task_results:
+                        del task_results['solver']
+
+                thread = threading.Thread(target=run_solver_background, args=(data,), daemon=True)
+                thread.start()
+                return {"status": "started", "message": "Schedule generation started"}
+
+        elif endpoint == '/api/schedule/result':
+            if method == 'GET':
+                # Get the result if available
+                with task_lock:
+                    if 'solver' in active_tasks:
+                        return {"status": "generating"}
+                    elif 'solver' in task_results:
+                        result = task_results['solver']
+                        del task_results['solver']  # Clear after retrieval
+                        return result
+                    else:
+                        return {"status": "no_result"}
 
         # ADMIN
         elif endpoint == '/api/admin/reset':

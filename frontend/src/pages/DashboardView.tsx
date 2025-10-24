@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { CoverageTimeline } from '../components/CoverageTimeline'
 import DaySchedule from '../components/DaySchedule'
 import { format12, hhmmToMin } from '../lib/time'
-import { api } from '../utils/api';
+import { api } from '../utils/api'
+import { useSchedule } from '../context/ScheduleContext'
 
 const hoursBetween = (start: string, end: string) =>
   Math.max(0, hhmmToMin(end) - hhmmToMin(start)) / 60;
@@ -56,8 +57,8 @@ function formatDate_mmddyyyy(iso: string) {
 export default function DashboardView() {
   const [weekStart, setWeekStart] = useState<string>('')
   const [result, setResult] = useState<ScheduleResult | null>(null)
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [progress, setProgress] = useState({ count: 0, elapsed: 0 })
+  const { isGenerating, progress, setIsGenerating, setProgress } = useSchedule()
+  const pollingRef = useRef(false)
 
   // Restore last generated schedule on mount
   useEffect(() => {
@@ -74,42 +75,82 @@ export default function DashboardView() {
     }
   }, [])
 
-  // Subscribe to solver progress events
+  // Poll for results when generation is active (even if navigated away)
   useEffect(() => {
-    const handleProgress = (data: any) => {
-      if (data.type === 'solution_found') {
-        setProgress({ count: data.count, elapsed: data.elapsed })
+    if (!isGenerating || pollingRef.current) return
+
+    pollingRef.current = true
+    console.log('[Dashboard] Starting result polling')
+
+    const pollResult = async () => {
+      if (!pollingRef.current) {
+        console.log('[Dashboard] Polling stopped')
+        return
+      }
+
+      try {
+        const json = await api.get('/api/schedule/result')
+        console.log('[Dashboard] Poll result:', json)
+
+        if (json.status === 'generating') {
+          // Still running, poll again
+          setTimeout(pollResult, 500)
+        } else if (json.status === 'error') {
+          console.error('Schedule generation error:', json.error)
+          setIsGenerating(false)
+          setProgress({ count: 0, elapsed: 0 })
+          pollingRef.current = false
+        } else if (json.status === 'no_result') {
+          // No result yet, might have just started
+          setTimeout(pollResult, 500)
+        } else if (json.status === 'optimal' || json.status === 'feasible' || json.status === 'feasible_relaxed' || json.status === 'infeasible') {
+          // Got a valid schedule result!
+          console.log('[Dashboard] Setting result:', json)
+          setResult(json)
+          setIsGenerating(false)
+          setProgress({ count: 0, elapsed: 0 })
+          pollingRef.current = false
+
+          // Persist to localStorage
+          try {
+            localStorage.setItem(LS_KEY_RESULT, JSON.stringify(json))
+            if (weekStart) localStorage.setItem(LS_KEY_WEEK, weekStart)
+          } catch (err) {
+            console.error('Failed to save to localStorage:', err)
+          }
+        } else {
+          // Unexpected status
+          console.warn('[Dashboard] Unexpected status:', json.status)
+          setTimeout(pollResult, 500)
+        }
+      } catch (error) {
+        console.error('[Dashboard] Poll error:', error)
+        setTimeout(pollResult, 1000) // Retry on error
       }
     }
 
-    if (window.electron?.onSolverProgress) {
-      window.electron.onSolverProgress(handleProgress)
-    }
+    // Start polling
+    setTimeout(pollResult, 500)
 
+    // Cleanup on unmount
     return () => {
-      if (window.electron?.offSolverProgress) {
-        window.electron.offSolverProgress(handleProgress)
-      }
+      console.log('[Dashboard] Component unmounting, stopping polling')
+      pollingRef.current = false
     }
-  }, [])
+  }, [isGenerating, weekStart, setIsGenerating, setProgress])
 
   const generate = async () => {
     setIsGenerating(true)
     setProgress({ count: 0, elapsed: 0 })
+    pollingRef.current = false // Reset polling flag
 
     try {
       const body = weekStart ? { week_start: weekStart } : {}
-      const json: ScheduleResult = await api.post('/api/schedule/generate', body)
-      setResult(json)
-
-      // Persist to localStorage so it survives route changes/page reloads
-      try {
-        localStorage.setItem(LS_KEY_RESULT, JSON.stringify(json))
-        if (weekStart) localStorage.setItem(LS_KEY_WEEK, weekStart)
-      } catch {
-        // storage may be unavailable; fail silently
-      }
-    } finally {
+      // Start the solver (returns immediately)
+      await api.post('/api/schedule/generate', body)
+      // Polling will start via useEffect
+    } catch (error) {
+      console.error('Failed to start schedule generation:', error)
       setIsGenerating(false)
       setProgress({ count: 0, elapsed: 0 })
     }

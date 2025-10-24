@@ -7,6 +7,8 @@ declare global {
       invoke: (method: string, endpoint: string, data?: any) => Promise<any>;
       onSolverProgress: (callback: (data: any) => void) => void;
       offSolverProgress: (callback: (data: any) => void) => void;
+      onSolverComplete: (callback: (data: any) => void) => void;
+      offSolverComplete: (callback: (data: any) => void) => void;
     };
   }
 }

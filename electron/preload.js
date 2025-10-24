@@ -21,5 +21,15 @@ contextBridge.exposeInMainWorld('electron', {
   // Unsubscribe from solver progress events
   offSolverProgress: (callback) => {
     ipcRenderer.removeListener('solver-progress', callback);
+  },
+
+  // Subscribe to solver completion events
+  onSolverComplete: (callback) => {
+    ipcRenderer.on('solver-complete', (event, data) => callback(data));
+  },
+
+  // Unsubscribe from solver completion events
+  offSolverComplete: (callback) => {
+    ipcRenderer.removeListener('solver-complete', callback);
   }
 });
