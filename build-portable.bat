@@ -18,6 +18,11 @@ echo.
 
 echo Step 2: Creating Python Backend Bundle...
 cd backend
+
+REM Clean old builds
+if exist dist rmdir /S /Q dist
+if exist build rmdir /S /Q build
+
 pip install pyinstaller
 if errorlevel 1 (
     echo ERROR: Failed to install pyinstaller!
@@ -25,13 +30,11 @@ if errorlevel 1 (
     exit /b 1
 )
 
-pyinstaller --clean --onedir --name schedule-backend ^
+python -m PyInstaller --clean --onedir --name schedule-backend ^
   --hidden-import=ortools ^
   --hidden-import=sqlmodel ^
   --hidden-import=sqlalchemy ^
   --hidden-import=pydantic ^
-  --hidden-import=pydantic_settings ^
-  --hidden-import=app.models.dbbase ^
   --hidden-import=app.models.employee ^
   --hidden-import=app.models.timeoff ^
   --hidden-import=app.models.unavailable ^

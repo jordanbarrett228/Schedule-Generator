@@ -13,7 +13,7 @@
     "build:frontend": "cd frontend && npm run build",
     "build:python": "cd backend && pyinstaller --clean run_app.spec",
     "build": "npm run build:frontend && electron-builder",
-    "build:portable": "npm run build:frontend && electron-builder --dir",
+    "build:portable": "npm run build:frontend && electron-builder --win portable",
     "postinstall": "electron-builder install-app-deps"
   },
   "build": {
@@ -45,7 +45,8 @@
           "arch": ["x64"]
         }
       ],
-      "icon": "electron/icon.ico"
+      "verifyUpdateCodeSignature": false,
+      "signAndEditExecutable": false
     },
     "portable": {
       "artifactName": "${productName}-Portable.${ext}"
